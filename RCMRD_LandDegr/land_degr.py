@@ -21,7 +21,7 @@
  ***************************************************************************/
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtGui import QAction, QIcon, QFileDialog
 from qgis.core import *
 # Initialize Qt resources from file resources.py
 import resources
@@ -82,6 +82,7 @@ class RCMRD_LandDegr:
             {"name":"Somalia", "roiXY":[40.965385376,-1.69628316498, 51.417037811,11.989118646]},
             {"name":"Uganda", "roiXY":[29.548459513,-1.475205994, 35.006472615,4.219691875]}]
         self.selectedRoi = None
+
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -218,6 +219,18 @@ class RCMRD_LandDegr:
 
         return
 
+    def openFile(self, name):
+        fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open raster file"))
+        if fname:
+            if name=='Vegetation Index':
+                self.dlg.comboVegetationIndex.addItem(fname)
+            elif name=='Rainfall Erosivity':
+                self.dlg.comboRainfallErosivity.addItem(fname)
+            elif name=='Population Density':
+                self.dlg.comboPopDensity.addItem(fname)
+            elif name=='Slope LF':
+                self.dlg.comboSlopeLF.addItem( fname)
+
     def run(self):
         """Set up the interface content and call business-logic functions"""
 
@@ -229,6 +242,9 @@ class RCMRD_LandDegr:
         self.dlg.comboSlopeLF.clear()
         self.dlg.comboSoilErodibility.clear()
         self.dlg.logTextDump.clear()
+
+        # force opening on the "Help" tab
+        self.dlg.tabWidget.setCurrentIndex(5)
 
         self.dlg.logTextDump.append("Initialising...")
         # setup "settings" tools. ROI are defined with xMin, yMin, xMax, yMax
@@ -261,7 +277,13 @@ class RCMRD_LandDegr:
         self.dlg.comboRainfallErosivity.addItems(raster_list)
         self.dlg.comboSlopeLF.addItems(raster_list)
         self.dlg.comboSoilErodibility.addItems(raster_list)
-        
+
+        # connect the file chooser function to the buttons
+        self.dlg.buttonVegetationIndex.clicked.connect(lambda: self.openFile('Vegetation Index'))
+        self.dlg.buttonRainfallErosivity.clicked.connect(lambda: self.openFile('Rainfall Erosivity'))
+        self.dlg.buttonPopDensity.clicked.connect(lambda: self.openFile('Population Density'))
+        self.dlg.buttonSlopeLF.clicked.connect(lambda: self.openFile('Slope LF'))
+
         # show the dialog
         self.dlg.show()
         self.dlg.logTextDump.append("Waiting for settings")
@@ -280,4 +302,4 @@ class RCMRD_LandDegr:
         if result:
             # check that all required parameters are set, else trigger an error message
             self.iface.messageBar().pushMessage("Info","result is true")
-            QgsMessageLog.logMessage("Value is " + str(self.dlg.data1.value()))
+            #QgsMessageLog.logMessage("Value is " + str(self.dlg.data1.value()))
