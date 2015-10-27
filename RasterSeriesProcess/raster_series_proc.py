@@ -218,6 +218,8 @@ class RasterSeriesProcess:
         ns = fid0.RasterXSize
         nl = fid0.RasterYSize
         nb = fid0.RasterCount
+        noDataValue = fid0.GetRasterBand(1).GetNoDataValue()
+
         projection = fid0.GetProjection()
         geoTrans = fid0.GetGeoTransform()
         fid0 = None # equivalent to fid0.close()
@@ -247,10 +249,27 @@ class RasterSeriesProcess:
             fid = gdal.Open(ii.source(), GA_ReadOnly)
             if sumArr is None:
                 sumArr = fid.GetRasterBand(1).ReadAsArray(0, 0, ns, nl).astype(float)
+                if noDataValue is not None:
+                    wnodata = sumArr != noDataValue
+                    nCount  = numpy.zeros(ns * nl)
+                    nCount[wnodata] = 1
+                else:
+                    nCount = numpy.ones(ns * nl)
             else:
                 for il in range(nl):
                     data = numpy.ravel(fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1)).astype(float)
+                    if noDataValue is not None:
+                        wnodata = data != noDataValue
+                        sumArr[wnodata] = sumArr[wnodata] + data[wnodata]
+                        nCount[wnodata] = nCount[wnodata] + 1
+                    else:
+                        sumArr = sumArr + data
+                        nCount = nCount + 1
             fid = None # release file, equivalent to fid.close()
+
+        # compute average
+        # write result
+
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
