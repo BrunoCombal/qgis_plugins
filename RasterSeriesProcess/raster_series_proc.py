@@ -75,7 +75,7 @@ class RasterSeriesProcess:
 
         # self objected
         self.raster_list=[]
-        self.outfile_max = None
+        self.outfile = {"max":None, "min":None, "avg":None, "median":None}
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -166,6 +166,7 @@ class RasterSeriesProcess:
 
         return action
 
+    #_______________________________________
     def deleteEntry(self):
         self.iface.messageBar().pushMessage("Info","Deleting!")
         for item in self.dlg.widgetListFiles.selectedItems():
@@ -173,11 +174,14 @@ class RasterSeriesProcess:
             # must also remove entry in raster_list
             QgsMessageLog.logMessage("Missing implementation of raster_list clean up")
 
+    #________________________________________
+    # let the user define a path and filename
     def defineFile(self):
         outfile = QFileDialog.getSaveFileName(self.dlg, "Define an output filename",
                                                     os.path.expanduser("~"))
         if outfile:
             self.dlg.lineEdit_maxOut.setText(outfile)
+            self.outfile["max"]=outfile
 
     def ParseType(self, type):
         if type == 'Byte':
@@ -220,13 +224,13 @@ class RasterSeriesProcess:
 
         QgsMessageLog.logMessage("ns: "+ str(ns) + " nl:" + str(nl) + " nb:" + str(nb))
         # init result with the first file, then loop over the rest
-        if self.outfile_max is None:
+        if self.outfile['max'] is None:
             return
         format='GTiff'
         options=['compress=LZW']
         outType='Float32'
         outDrv = gdal.GetDriverByName(format)
-        outDs = outDrv.Create(self.outfile_max, ns, nl, nb, self.ParseType(outType), options)
+        outDs = outDrv.Create(self.outfile['max'], ns, nl, nb, self.ParseType(outType), options)
         outDs.SetProjection(projection)
         outDs.SetGeoTransform(geoTrans)
         nCount = None
@@ -287,11 +291,23 @@ class RasterSeriesProcess:
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
-        result = self.dlg.exec_()
+        goOk = False
+        while (not goOk): # if result returns false: exit
+            result = self.dlg.exec_()
+            # check conditions for goOk=True: ALL conditions must be true
+            goOk = True
+            # if any condition is false: goOk set to False
+            if self.outfile["max"] is None:
+                goOk=False
+            if len(self.raster_list)<2:
+                goOk=False
+            # if cancel is pressed (result==False), goOk is True: loop exits
+            if result==False:
+                goOk=True
+                
         # See if OK was pressed
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             # force output file
-            self.outfile_max = 'H:/mesa/data_output/maxTest.tif'
             self.doProcessing()
