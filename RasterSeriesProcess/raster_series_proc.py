@@ -283,10 +283,10 @@ class RasterSeriesProcess:
 
             else: # sum everything
                 sum = data.sum(axis=0)
-                count = numpy.ones(ns) * len(listFID)
+                avg = sum / len(listFID).astype(float)
                 
             # now put the current line back in the memory arrays
-            avgArr.append(sum)
+            avgArr.append(avg)
         
         # compute average
         #QgsMessageLog.logMessage("Writing output")
