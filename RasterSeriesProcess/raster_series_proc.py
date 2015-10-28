@@ -76,7 +76,10 @@ class RasterSeriesProcess:
         # self objected
         self.raster_list=[]
         self.outfile = {"max":None, "min":None, "avg":None, "median":None}
+        self.forcedNoData = -32768
+        self.noDataIsSet = True
 
+        
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -166,14 +169,21 @@ class RasterSeriesProcess:
 
         return action
 
+    # ______________________________________
+    def logMsg(self, msg, errorLvl=QgsMessageLog.INFO):
+        QgsMessageLog.logMessage(msg, tag='Raster Processing',level=errorLvl)
     #_______________________________________
     def deleteEntry(self):
-        self.iface.messageBar().pushMessage("Info","Deleting!")
+        # files are identified by name: it is possible to have 2 (or more) files having the same name.
+        thisPosition = []
         for item in self.dlg.widgetListFiles.selectedItems():
+            # remove from widget
             self.dlg.widgetListFiles.takeItem(self.dlg.widgetListFiles.row(item))
-            # must also remove entry in raster_list
-            self.iface.messageBar().pushMessage('Info',"Missing implementation of raster_list clear up")
-            #QgsMessageLog.logMessage("Missing implementation of raster_list clean up")
+            # remove from raster_list
+            for ii in range( len(self.raster_list) ):
+                if self.raster_list[ii].name() == item.text():
+                    del self.raster_list[ ii ]
+                    break
 
     #________________________________________
     # let the user define a path and filename
@@ -211,28 +221,37 @@ class RasterSeriesProcess:
 	    return GDT_Float32
 
     def doProcessing(self):
-        self.iface.messageBar().pushMessage("outfile max:"+self.outfile['max'])
+        listFID = []
         if self.outfile['max'] is None:
             self.iface.messageBar().pushMessage("Info","You must define an output file")
             return False
 
 
-        # list of files is in self.rasterList
-        # in a loop: sum-up and detect the no-data, in preparation of the division
+        # open all files in self.raster_list
+        for ii in self.raster_list:
+            fid = gdal.Open(ii.source(), GA_ReadOnly)
+            if not fid:
+                self.logMsg("Could not open file "+ii.source()+". Abort processing")
+                return False
+            else:
+                self.logMsg("Opening file "+str(ii.source()))
+            listFID.append(fid)
 
         # output has the definition of the first file
-        fid0 = gdal.Open(self.raster_list[0].source(), GA_ReadOnly)
-        ns = fid0.RasterXSize
-        nl = fid0.RasterYSize
-        nb = fid0.RasterCount
-        noDataValue = fid0.GetRasterBand(1).GetNoDataValue()
-
-        projection = fid0.GetProjection()
-        geoTrans = fid0.GetGeoTransform()
-        fid0 = None # equivalent to fid0.close()
-
-        #QgsMessageLog.logMessage("ns: "+ str(ns) + " nl:" + str(nl) + " nb:" + str(nb))
-        # init result with the first file, then loop over the rest
+        ns = listFID[0].RasterXSize
+        nl = listFID[0].RasterYSize
+        nb = listFID[0].RasterCount
+        if not self.noDataIsSet:
+            noDataValue = listFID[0].GetRasterBand(1).GetNoDataValue()
+            self.logMsg("No data set to "+str(noDataValue))
+        else:
+            noDataValue = self.forcedNoData
+            self.logMsg("self.noDataIsSet; no data set to "+str(noDataValue))
+        projection = listFID[0].GetProjection()
+        geoTrans = listFID[0].GetGeoTransform()
+        self.logMsg("Output image: ns={0}, nl={1}".format(ns, nl))
+        
+        # init output file
         format='GTiff'
         options=['compress=LZW']
         outType='Float32'
@@ -240,73 +259,45 @@ class RasterSeriesProcess:
         outDs = outDrv.Create(self.outfile['max'], ns, nl, nb, self.ParseType(outType), options)
         outDs.SetProjection(projection)
         outDs.SetGeoTransform(geoTrans)
-        nCount = None
-        sumArr = None
+        avgArr = []
 
-        for ii in self.raster_list:
-            #basename = QFileInfo(ii).baseName()
-            #pathname = QFileInfo(ii).path()
-            # QgsMessageLog.logMessage("Path " + pathname + " file: "+basename )
-            source = ii.source()
-            # process line by line: avoid bloating memory, barely slower
-            #QgsMessageLog.logMessage("--- Opening file: "+ii.source())
-            fid = gdal.Open(ii.source(), GA_ReadOnly)
-            if not fid:
-                self.iface.messageBar().pushMessage("Info","Error opening file")
-                #QgsMessageLog.logMessage("Error opening file")
-            if sumArr is None:
-                #QgsMessageLog.logMessage("Initializing...")
-                sumArr = fid.GetRasterBand(1).ReadAsArray(0, 0, ns, nl).astype(float)
-                if noDataValue is not None:
-                    wnodata = sumArr != noDataValue
-                    nCount  = numpy.zeros(ns * nl)
-                    nCount[wnodata] = 1
-                else:
-                    nCount = numpy.ones(ns * nl)
-            else:
-                #QgsMessageLog.logMessage('adding up values')
-                fullNoDataLine = 0
-                for il in range(nl):
-                    data = numpy.ravel(fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1)).astype(float)
-                    if noDataValue is not None:
-                        wnodata = data != noDataValue
-                        if wnodata.length():
-                            sumArr[wnodata] = sumArr[wnodata] + data[wnodata]
-                            nCount[wnodata] = nCount[wnodata] + 1
-                        else:
-                            fullNoDataLine += 1
-                    else:
-                        sumArr = sumArr + data
-                        nCount = nCount + 1
+        # let's scan the image line by line (save memory)
+        for il in range(nl):
+            data=[]
+            for ifile in listFID: # get data from all files
+                thisDataset = numpy.ravel(ifile.GetRasterBand(1).ReadAsArray(0, il, ns, 1).astype(float))
+                data.append(thisDataset)
 
-                if (fulllNoDataLine == (nl-1)):
-                    self.iface.messageBar().pushMessage('Info',"File "+ii.source()+": all pixels set to no data")
-                    #QgsMessageLog.logMessage("File "+ii.source()+": all pixels set to no data")
-            
-            fid = None # release file, equivalent to fid.close()
+            data = numpy.asarray(data)
+            # let's sum all files' data, per pixel
+            if noDataValue is not None: # conditional sum
+                sum = (data * (data != noDataValue)).sum(axis=0)
+                #QgsMessageLog.logMessage("max sum "+str(sum.max()))
+                count = (data != noDataValue).sum(axis=0)
+                #QgsMessageLog.logMessage(str( len(count) ))
+                avg = numpy.zeros(ns)*noDataValue
+                wdiv = count != 0
+                if wdiv.any(): # where division is allowed, else skip to the next line
+                    #QgsMessageLog.logMessage("size "+str(wdiv.size))
+                    avg[wdiv] = sum[wdiv] / count[wdiv].astype(float)
 
+            else: # sum everything
+                sum = data.sum(axis=0)
+                count = numpy.ones(ns) * len(listFID)
+                
+            # now put the current line back in the memory arrays
+            avgArr.append(sum)
+        
         # compute average
-        doWrite = False
-        if noDataValue is not None:
-            wnodata = sumArr != noDataValue
-            if wnodata.length():
-                sumArr[wnodata] = sumArr[wnodata] / nCount[wnodata].astype(float)
-                doWrite = True
-            else:
-                self.iface.messageBar().pushMessage('Info','Average: all pixels set to no data')
-                #QgsMessageLog.logMessage("Average: all pixels set to no data")
-        else:
-            sumArr = sumArr / nCount.astype(float)
-            doWrite = True
-        # write result
-        if doWrite:
-            #QgsMessageLog.logMessage("Writing output")
-            outDs.GetRasterBand(1).WriteArry(sumArr.reshape(ns, nl), 0, 0)
-        else:
-            self.iface.messageBar().pushMessage('Could not write average file')
-            #QgsMessageLog.logMessage("Could not write average file")
+        #QgsMessageLog.logMessage("Writing output")
+        outDs.GetRasterBand(1).WriteArray(numpy.asarray(avgArr), 0, 0)
 
-
+        # close files
+        for ii in listFID:
+            ii = None
+        
+        return True
+            
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
@@ -356,7 +347,6 @@ class RasterSeriesProcess:
                 
         # See if OK was pressed
         if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            # force output file
-            pass
+            # if asked, open result in canvas
+            self.iface.addRasterLayer( self.outfile['max'], QFileInfo(self.outfile['max']).baseName() )
+            
