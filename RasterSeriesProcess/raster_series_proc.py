@@ -172,7 +172,8 @@ class RasterSeriesProcess:
         for item in self.dlg.widgetListFiles.selectedItems():
             self.dlg.widgetListFiles.takeItem(self.dlg.widgetListFiles.row(item))
             # must also remove entry in raster_list
-            QgsMessageLog.logMessage("Missing implementation of raster_list clean up")
+            self.iface.messageBar().pushMessage('Info',"Missing implementation of raster_list clear up")
+            #QgsMessageLog.logMessage("Missing implementation of raster_list clean up")
 
     #________________________________________
     # let the user define a path and filename
@@ -210,6 +211,12 @@ class RasterSeriesProcess:
 	    return GDT_Float32
 
     def doProcessing(self):
+        self.iface.messageBar().pushMessage("outfile max:"+self.outfile['max'])
+        if self.outfile['max'] is None:
+            self.iface.messageBar().pushMessage("Info","You must define an output file")
+            return False
+
+
         # list of files is in self.rasterList
         # in a loop: sum-up and detect the no-data, in preparation of the division
 
@@ -224,10 +231,8 @@ class RasterSeriesProcess:
         geoTrans = fid0.GetGeoTransform()
         fid0 = None # equivalent to fid0.close()
 
-        QgsMessageLog.logMessage("ns: "+ str(ns) + " nl:" + str(nl) + " nb:" + str(nb))
+        #QgsMessageLog.logMessage("ns: "+ str(ns) + " nl:" + str(nl) + " nb:" + str(nb))
         # init result with the first file, then loop over the rest
-        if self.outfile['max'] is None:
-            return
         format='GTiff'
         options=['compress=LZW']
         outType='Float32'
@@ -243,11 +248,14 @@ class RasterSeriesProcess:
             #pathname = QFileInfo(ii).path()
             # QgsMessageLog.logMessage("Path " + pathname + " file: "+basename )
             source = ii.source()
-            QgsMessageLog.logMessage(source)
-            # process line by line: avoid bloating memory
-            QgsMessageLog.logMessage("opening file: "+ii.source())
+            # process line by line: avoid bloating memory, barely slower
+            #QgsMessageLog.logMessage("--- Opening file: "+ii.source())
             fid = gdal.Open(ii.source(), GA_ReadOnly)
+            if not fid:
+                self.iface.messageBar().pushMessage("Info","Error opening file")
+                #QgsMessageLog.logMessage("Error opening file")
             if sumArr is None:
+                #QgsMessageLog.logMessage("Initializing...")
                 sumArr = fid.GetRasterBand(1).ReadAsArray(0, 0, ns, nl).astype(float)
                 if noDataValue is not None:
                     wnodata = sumArr != noDataValue
@@ -256,19 +264,47 @@ class RasterSeriesProcess:
                 else:
                     nCount = numpy.ones(ns * nl)
             else:
+                #QgsMessageLog.logMessage('adding up values')
+                fullNoDataLine = 0
                 for il in range(nl):
                     data = numpy.ravel(fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1)).astype(float)
                     if noDataValue is not None:
                         wnodata = data != noDataValue
-                        sumArr[wnodata] = sumArr[wnodata] + data[wnodata]
-                        nCount[wnodata] = nCount[wnodata] + 1
+                        if wnodata.length():
+                            sumArr[wnodata] = sumArr[wnodata] + data[wnodata]
+                            nCount[wnodata] = nCount[wnodata] + 1
+                        else:
+                            fullNoDataLine += 1
                     else:
                         sumArr = sumArr + data
                         nCount = nCount + 1
+
+                if (fulllNoDataLine == (nl-1)):
+                    self.iface.messageBar().pushMessage('Info',"File "+ii.source()+": all pixels set to no data")
+                    #QgsMessageLog.logMessage("File "+ii.source()+": all pixels set to no data")
+            
             fid = None # release file, equivalent to fid.close()
 
         # compute average
+        doWrite = False
+        if noDataValue is not None:
+            wnodata = sumArr != noDataValue
+            if wnodata.length():
+                sumArr[wnodata] = sumArr[wnodata] / nCount[wnodata].astype(float)
+                doWrite = True
+            else:
+                self.iface.messageBar().pushMessage('Info','Average: all pixels set to no data')
+                #QgsMessageLog.logMessage("Average: all pixels set to no data")
+        else:
+            sumArr = sumArr / nCount.astype(float)
+            doWrite = True
         # write result
+        if doWrite:
+            #QgsMessageLog.logMessage("Writing output")
+            outDs.GetRasterBand(1).WriteArry(sumArr.reshape(ns, nl), 0, 0)
+        else:
+            self.iface.messageBar().pushMessage('Could not write average file')
+            #QgsMessageLog.logMessage("Could not write average file")
 
 
     def initGui(self):
@@ -310,23 +346,17 @@ class RasterSeriesProcess:
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
-        goOk = False
-        while (not goOk): # if result returns false: exit
+        checkToGo = False
+        while not checkToGo: # if result returns false: exit
             result = self.dlg.exec_()
-            # check conditions for goOk=True: ALL conditions must be true
-            goOk = True
-            # if any condition is false: goOk set to False
-            if self.outfile["max"] is None:
-                goOk=False
-            if len(self.raster_list)<2:
-                goOk=False
-            # if cancel is pressed (result==False), goOk is True: loop exits
-            if result==False:
-                goOk=True
+            if result:
+                checkToGo = self.doProcessing()
+            else:
+                checkToGo = True
                 
         # See if OK was pressed
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             # force output file
-            self.doProcessing()
+            pass
