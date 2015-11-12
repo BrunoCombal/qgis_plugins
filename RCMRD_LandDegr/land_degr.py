@@ -23,6 +23,11 @@
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon, QFileDialog
 from qgis.core import *
+# gdal
+import processing
+from osgeo import osr, gdal
+from osgeo.gdalconst import *
+import numpy
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
@@ -70,6 +75,7 @@ class RCMRD_LandDegr:
         self.toolbar.setObjectName(u'RCMRD_LandDegr')
 
         # Declare user instance variables
+        self.WrkDir = os.path.join( os.path.expanduser("~"), "qgis_rcmrdplugin" )
         self.roiDefinitions = None
         self.roiDefinitions = [{"name":"IGAD", "roiXY":[21.8094, -4.6775, 51.417, 22.227]},
             {"name":"Djibouti", "roiXY":[41.749110148,10.929824931, 43.418711785,12.707912502]},
@@ -181,6 +187,7 @@ class RCMRD_LandDegr:
             icon_path,
             text=self.tr(u'Land Degradation Indices'),
             callback=self.run,
+            whats_this=self.tr(u'Compute RCMRD LDIM'),
             parent=self.iface.mainWindow())
 
 
@@ -194,11 +201,56 @@ class RCMRD_LandDegr:
         # remove the toolbar
         del self.toolbar
 
+
+    # ____________________
+    # Business logic functions and methods
+    #_____________________
+    # doInitDir: if the directory does not exist: create it
+    def doInitDir(self):
+        if os.path.isdir(self.WrkDir):
+            return True
+        os.makedirs(self.WrkDir)
+    # _____________________    
+    # doResample: resample the inputs to a common projection and resolution, will crop images
+    # images saved into the working directory
+    def doResample(self):
+        doInitDir(self.WrkDir)
+
+        # for now, dst is hard coded
+        #inCRS = QgsCoordinateReferenceSystem(4326) # actually, must be read from the input file
+        newCRS = QgsCoordinateReferenceSystem()
+        newCRS.createFromProj4('+proj=aea +lat_1=18 +lat_2=-4 +lat_0=11 +lon_0=25 +x_0=37.5 +y_0=11')
+        if not newCRS.isValid():
+            # dump error message
+            return False
+
+
+        # see: https://docs.qgis.org/2.6/en/docs/user_manual/processing_algs/gdalogr/gdal_projections/warpreproject.html
+        inputFile="" # a layer
+        source_srs = inputFile.crs()
+        
+        # for now, we only resample 1 dataset, to be placed in a loop later on
+        method = 1 # 1: bilinear
+        outType=5 # 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
+        processing.runalg("gdalorg:warpreproject", inputFile, source_srs, new_crs, 1000, method, extra, rtype, output)
+        
+    # ____________________
+    # Run business logic
+    # 1./ reproject/resample input files, save in tmp files
+    # 2./ compute indices, per pixel, using weights, save in output files
+    # Will exit on any error, reports for errors
+    def doProcessing(self):
+        # Inputs are reprojected and resampled
+        # Common: Albers Equal Area, 1km x 1km
+        self.doResample()
+
+    # ____________________    
     def doCheckToGo(self):
         if (self.selectedRoi) is None:
             return False
         return True
 
+    # _____________________
     def displayRoiValues(self):
         if self.dlg.comboChooseArea.currentIndex() is not None:
             listRoiNames = []
@@ -242,6 +294,10 @@ class RCMRD_LandDegr:
         self.dlg.comboSlopeLF.clear()
         self.dlg.comboSoilErodibility.clear()
         self.dlg.logTextDump.clear()
+
+        # initialise lineEditWrkDir with self.WrkDir
+        self.dlg.lineEditWrkDir.clear()
+        self.dlg.lineEditWrkDir.setText(self.WrkDir)
 
         # force opening on the "Help" tab
         self.dlg.tabWidget.setCurrentIndex(5)
@@ -301,5 +357,6 @@ class RCMRD_LandDegr:
         # See if OK was pressed
         if result:
             # check that all required parameters are set, else trigger an error message
+            self.doProcessing()
             self.iface.messageBar().pushMessage("Info","result is true")
             #QgsMessageLog.logMessage("Value is " + str(self.dlg.data1.value()))
