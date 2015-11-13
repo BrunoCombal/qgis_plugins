@@ -199,6 +199,13 @@ class RCMRD_LandDegr:
     # ____________________
     def logMsg(self, msg, errorLvl = QgsMessageLog.INFO):
         QgsMessageLog.logMessage( msg, tag='RCMRD Land Degradation', level=errorLvl)
+        
+        prepend=''
+        if errorLvl==QgsMessageLog.WARNING:
+            prepend="Warning! "
+        if errorLvl==QgsMessageLog.CRITICAL:
+            prepend="Critical error! "
+        self.dlg.logTextDump.append(prepend + msg)
     #  ____________________
     # Business logic functions and methods
     # _____________________
@@ -272,11 +279,23 @@ class RCMRD_LandDegr:
         self.logMsg("method: "+ str(method) )
         self.logMsg("rtype: " + str(self.ParseType("Float32")) )
         self.logMsg("outfile: " + output)
-        #processing.runalg("gdalogr:warpreproject", inFileName, 'epsg:4326', newCRS.toProj4(), 1000, method, "", 5, output)
-        processing.runalg('gdalogr:warpreproject', '/data/mesa/data_input/vgt-ndvi/20150301_vgt-ndvi_ndv_SPOTV-Africa-1km_sv2-pv2.1.tif',
-                          'epsg:4326', newCRS.toProj4(),
-                          None,0,1,5,None,None,None, None, None, None, None, None, 
-                          '/home/bruno/qgis_rcmrdplugin/reproject_46778.tif')
+        processing.runalg('gdalogr:warpreproject',
+                          inFileName,
+                          inCRS,
+                          newCRS.toProj4(),
+                          '', # no data, <parameterString>
+                          0, 
+                          1,
+                          5,
+                          None,
+                          None,
+                          None,
+                          None,
+                          None,
+                          None,
+                          None,
+                          None, 
+                          output)
     # ____________________
     # Run business logic
     # 1./ reproject/resample input files, save in tmp files
@@ -410,7 +429,9 @@ class RCMRD_LandDegr:
 
         # See if OK was pressed
         if result:
-            # check that all required parameters are set, else trigger an error message
+            # set focus on the message tab
+            self.dlg.tabWidget.setCurrentIndex(4)
+            # then run processings
             self.doProcessing()
             self.iface.messageBar().pushMessage("Info","result is true")
             #QgsMessageLog.logMessage("Value is " + str(self.dlg.data1.value()))
