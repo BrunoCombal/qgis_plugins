@@ -28,6 +28,8 @@ import processing
 from osgeo import osr, gdal
 from osgeo.gdalconst import *
 import numpy
+import random
+#import tempfile
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
@@ -89,6 +91,7 @@ class RCMRD_LandDegr:
             {"name":"Uganda", "roiXY":[29.548459513,-1.475205994, 35.006472615,4.219691875]}]
         self.selectedRoi = None
 
+        self.raster_list = []
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -203,18 +206,51 @@ class RCMRD_LandDegr:
 
 
     # ____________________
+    def logMsg(self, msg, errorLvl = QgsMessageLog.INFO):
+        QgsMessageLog.logMessage( msg, tag='RCMRD Land Degradation', level=errorLvl)
+    #  ____________________
     # Business logic functions and methods
-    #_____________________
+    # _____________________
+    def ParseType(self, type):
+        if type == 'Byte':
+	    return GDT_Byte
+        elif type == 'Int16':
+	        return GDT_Int16
+        elif type == 'UInt16':
+	        return GDT_UInt16
+        elif type == 'Int32':
+	        return GDT_Int32
+        elif type == 'UInt32':
+	        return GDT_UInt32
+        elif type == 'Float32':
+	        return GDT_Float32
+        elif type == 'Float64':
+	        return GDT_Float64
+        elif type == 'CInt16':
+	        return GDT_CInt16
+        elif type == 'CInt32':
+	        return GDT_CInt32
+        elif type == 'CFloat32':
+	        return GDT_CFloat32
+        elif type == 'CFloat64':
+	        return GDT_CFloat64
+        else:
+	    return GDT_Float32
+    # _____________________
     # doInitDir: if the directory does not exist: create it
-    def doInitDir(self):
-        if os.path.isdir(self.WrkDir):
+    def doInitDir(self, thisDir):
+        if os.path.isdir(thisDir):
             return True
-        os.makedirs(self.WrkDir)
+        os.makedirs(thisDir)
+    # _____________________
+    def doTempFile(self, prefix='', suffix='', dir=''):
+        idTag = random.randint(10000,99999)
+        return os.path.join(dir, prefix + '_' + str(idTag) + suffix)
     # _____________________    
     # doResample: resample the inputs to a common projection and resolution, will crop images
     # images saved into the working directory
     def doResample(self):
-        doInitDir(self.WrkDir)
+        self.doInitDir(self.WrkDir)
 
         # for now, dst is hard coded
         #inCRS = QgsCoordinateReferenceSystem(4326) # actually, must be read from the input file
@@ -223,16 +259,25 @@ class RCMRD_LandDegr:
         if not newCRS.isValid():
             # dump error message
             return False
+        self.logMsg("New CRS: "+newCRS.toProj4())
 
 
         # see: https://docs.qgis.org/2.6/en/docs/user_manual/processing_algs/gdalogr/gdal_projections/warpreproject.html
-        inputFile="" # a layer
-        source_srs = inputFile.crs()
-        
+        inFileName = self.raster_list[self.dlg.comboVegetationIndex.currentIndex()].source()
+        QgsMessageLog.logMessage("input file " + inFileName)
+        inFID = gdal.Open(inFileName, GA_ReadOnly)
+        inCRS = inFID.GetProjection()
+        inTrans = inFID.GetGeoTransform()
+        QgsMessageLog.logMessage("CRS "+inCRS)
+        for ii in inTrans:
+            QgsMessageLog.logMessage("Trans " + str(ii))
         # for now, we only resample 1 dataset, to be placed in a loop later on
+        extra = ["compress=lzw"]
         method = 1 # 1: bilinear
-        outType=5 # 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
-        processing.runalg("gdalorg:warpreproject", inputFile, source_srs, new_crs, 1000, method, extra, rtype, output)
+        # rtype 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
+        output = self.doTempFile('reproject', '.tif', self.WrkDir)
+        self.logMsg("temp file " + output)
+        processing.runalg("gdalogr:warpreproject", inFID, inCRS, newCRS, 1000, method, extra, self.ParseType('Float32'), output)
         
     # ____________________
     # Run business logic
@@ -313,7 +358,8 @@ class RCMRD_LandDegr:
         self.dlg.logTextDump.append("Scanning loaded files")
         layers = self.iface.legendInterface().layers()
         vector_list = []
-        raster_list = []
+        self.raster_list=[] # reset to 0 each time the plugin is called
+        
         # detect vectors and rasters already loaded in QGis
         for layer in layers:
             layerType = layer.type()
@@ -325,14 +371,15 @@ class RCMRD_LandDegr:
                 print layer.geometryType()
                 QgsMessageLog.logMessage('Vector: '+str(layer.name())+ ' '+str(layer.geometryType()))
             if layerType == QgsMapLayer.RasterLayer:
-                raster_list.append(layer.name())
+                self.raster_list.append(layer)
 
         # Assign the pre-loaded rasters and vectors to the interface objects
-        self.dlg.comboVegetationIndex.addItems(raster_list)
-        self.dlg.comboPopDensity.addItems(raster_list)
-        self.dlg.comboRainfallErosivity.addItems(raster_list)
-        self.dlg.comboSlopeLF.addItems(raster_list)
-        self.dlg.comboSoilErodibility.addItems(raster_list)
+        for ii in self.raster_list:
+            self.dlg.comboVegetationIndex.addItem(ii.name())
+            self.dlg.comboPopDensity.addItem(ii.name())
+            self.dlg.comboRainfallErosivity.addItem(ii.name())
+            self.dlg.comboSlopeLF.addItem(ii.name())
+            self.dlg.comboSoilErodibility.addItem(ii.name())
 
         # connect the file chooser function to the buttons
         self.dlg.buttonVegetationIndex.clicked.connect(lambda: self.openFile('Vegetation Index'))
