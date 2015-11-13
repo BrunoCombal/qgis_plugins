@@ -3,21 +3,12 @@
 /***************************************************************************
  RCMRD_LandDegr
                                  A QGIS plugin
- Compute dand degradation indices
+ Compute land degradation indices
                               -------------------
         begin                : 2015-10-16
         git sha              : $Format:%H$
         copyright            : (C) 2015 by Bruno Combal, MESA
         email                : bruno.combal@gmail.com
- ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
  ***************************************************************************/
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
@@ -249,6 +240,7 @@ class RCMRD_LandDegr:
     # _____________________    
     # doResample: resample the inputs to a common projection and resolution, will crop images
     # images saved into the working directory
+    # note: to read documentation about an algorithm: import processing; processing.alghelp("gdalogr:warpreproject")
     def doResample(self):
         self.doInitDir(self.WrkDir)
 
@@ -259,8 +251,6 @@ class RCMRD_LandDegr:
         if not newCRS.isValid():
             # dump error message
             return False
-        self.logMsg("New CRS: "+newCRS.toProj4())
-
 
         # see: https://docs.qgis.org/2.6/en/docs/user_manual/processing_algs/gdalogr/gdal_projections/warpreproject.html
         inFileName = self.raster_list[self.dlg.comboVegetationIndex.currentIndex()].source()
@@ -268,17 +258,25 @@ class RCMRD_LandDegr:
         inFID = gdal.Open(inFileName, GA_ReadOnly)
         inCRS = inFID.GetProjection()
         inTrans = inFID.GetGeoTransform()
-        QgsMessageLog.logMessage("CRS "+inCRS)
         for ii in inTrans:
             QgsMessageLog.logMessage("Trans " + str(ii))
         # for now, we only resample 1 dataset, to be placed in a loop later on
-        extra = ["compress=lzw"]
+        extra = "compress=lzw"
         method = 1 # 1: bilinear
         # rtype 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
         output = self.doTempFile('reproject', '.tif', self.WrkDir)
-        self.logMsg("temp file " + output)
-        processing.runalg("gdalogr:warpreproject", inFID, inCRS, newCRS, 1000, method, extra, self.ParseType('Float32'), output)
-        
+        self.logMsg("Reprojection parameters: ")
+        self.logMsg("input file: "+ inFileName)
+        self.logMsg("input CRS: "+inCRS)
+        self.logMsg("output CRS: "+newCRS.toProj4())
+        self.logMsg("method: "+ str(method) )
+        self.logMsg("rtype: " + str(self.ParseType("Float32")) )
+        self.logMsg("outfile: " + output)
+        #processing.runalg("gdalogr:warpreproject", inFileName, 'epsg:4326', newCRS.toProj4(), 1000, method, "", 5, output)
+        processing.runalg('gdalogr:warpreproject', '/data/mesa/data_input/vgt-ndvi/20150301_vgt-ndvi_ndv_SPOTV-Africa-1km_sv2-pv2.1.tif',
+                          'epsg:4326', newCRS.toProj4(),
+                          None,0,1,5,None,None,None, None, None, None, None, None, 
+                          '/home/bruno/qgis_rcmrdplugin/reproject_46778.tif')
     # ____________________
     # Run business logic
     # 1./ reproject/resample input files, save in tmp files
@@ -297,7 +295,14 @@ class RCMRD_LandDegr:
 
     # _____________________
     def displayRoiValues(self):
-        if self.dlg.comboChooseArea.currentIndex() is not None:
+        if self.dlg.comboChooseArea.currentIndex() is None:
+            return
+        elif self.dlg.comboChooseArea.currentIndex()==-1:
+            self.dlg.RoiWestEdit.clear()
+            self.dlg.RoiEastEdit.clear()
+            self.dlg.RoiSouthEdit.clear()
+            self.dlg.RoiNorthEdit.clear()
+        else:
             listRoiNames = []
             listRoiNames = [ ii["name"] for ii in self.roiDefinitions ]
             self.selectedRoi = listRoiNames[self.dlg.comboChooseArea.currentIndex()]
@@ -353,6 +358,8 @@ class RCMRD_LandDegr:
         for ii in self.roiDefinitions:
             self.dlg.logTextDump.append( ii["name"] )
         self.dlg.comboChooseArea.currentIndexChanged.connect(self.displayRoiValues)
+        self.dlg.comboChooseArea.setCurrentIndex(-1)
+        self.displayRoiValues()
 
         # setup input files
         self.dlg.logTextDump.append("Scanning loaded files")
