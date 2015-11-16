@@ -340,17 +340,24 @@ class RCMRD_LandDegr:
 
         return
 
+    # _____________________
+    # add a filename to the list of opened files
+    # anf move the index to the last opened file
     def openFile(self, name):
         fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open raster file"))
         if fname:
             if name=='Vegetation Index':
                 self.dlg.comboVegetationIndex.addItem(fname)
+                self.dlg.comboVegetationIndex.setCurrentIndex( self.dlg.comboVegetationIndex.count()-1 )
             elif name=='Rainfall Erosivity':
                 self.dlg.comboRainfallErosivity.addItem(fname)
+                self.dlg.comboRainfallErosivity.setCurrentIndex( self.dlg.comboRainfallErosivity.count()-1 )
             elif name=='Population Density':
                 self.dlg.comboPopDensity.addItem(fname)
+                self.dlg.comboPopDensity.setCurrentIndex( self.dlg.comboPopDensity.count()-1 )
             elif name=='Slope LF':
                 self.dlg.comboSlopeLF.addItem( fname)
+                self.dlg.comboSlopeLF.setCurrentIndex( self.dlg.comboSlopeLF.count()-1 )
 
     def run(self):
         """Set up the interface content and call business-logic functions"""
