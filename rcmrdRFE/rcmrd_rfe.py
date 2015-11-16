@@ -229,12 +229,12 @@ class rcmrdRFE:
     # ___________________
     def YYYYMMDD_to_Num(self, yyyymmdd):
         # base set to 1900
-        yyymmddStr = str(yyyymmdd)
+        Yyymmddstr = str(yyyymmdd)
         thisYear=int(yyyymmdd[0:4])
         thisMonth=int(yyyymmdd[4:6])
         thisDay=int(yyyymmdd[6:8])
 
-        return (thisYear-1900)*36 + (thisMonth-1)*3 + (thisDay)/10 + 1
+        return (thisYear-1900)*36 + (thisMonth-1)*3 + (thisDay)/10 
     # ___________________
     def Num_to_YYYYMMDD(self, count):
         # base set to 1900
@@ -246,7 +246,7 @@ class rcmrdRFE:
 
         return '{}{:02}{:02}'.format(thisYear, thisMonth, thisDay)
     # ___________________
-    def doCompute(self):
+    Def doCompute(self):
         # build list of filenames
         list_dates=[]
         list_files=[]
