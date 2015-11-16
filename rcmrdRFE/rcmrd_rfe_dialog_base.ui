@@ -39,7 +39,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>2</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="tabInputs">
     <attribute name="title">
@@ -87,10 +87,17 @@
         <property name="calendarPopup">
          <bool>true</bool>
         </property>
+        <property name="date">
+         <date>
+          <year>2015</year>
+          <month>12</month>
+          <day>21</day>
+         </date>
+        </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QLineEdit" name="lineEdit"/>
+       <widget class="QLineEdit" name="editInputDir"/>
       </item>
       <item row="2" column="1">
        <widget class="QDateEdit" name="dateEdit">
@@ -102,6 +109,13 @@
         </property>
         <property name="calendarPopup">
          <bool>true</bool>
+        </property>
+        <property name="date">
+         <date>
+          <year>2015</year>
+          <month>1</month>
+          <day>1</day>
+         </date>
         </property>
        </widget>
       </item>
@@ -245,7 +259,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox">
+       <widget class="QDoubleSpinBox" name="valueWRD">
         <property name="maximumSize">
          <size>
           <width>100</width>
@@ -274,7 +288,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_2">
+       <widget class="QDoubleSpinBox" name="valueWRI">
         <property name="maximumSize">
          <size>
           <width>100</width>
