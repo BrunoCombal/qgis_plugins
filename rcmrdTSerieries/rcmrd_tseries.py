@@ -322,6 +322,9 @@ class rcmrdTSerieries:
         return True
     # ___________________
     def doCompute(self):
+
+        classes=[[0.68, 0.98],[0.50, 0.68],[0.30, 0.50],[0.15, 0.30],[-0.10, 0.15]]
+        DN2F = [0.004, -0.1]
     
         # build list of filenames
         list_dates=[]
@@ -367,24 +370,37 @@ class rcmrdTSerieries:
         nl = listFID[0].RasterYSize
         format='GTiff'
         options=['compress=lzw']
-        outType=GDT_Float32
-        outDrv = gdal.GetDriverByName(format)
         
         # let's instantiate the output(s)
         if self.dlg.checkAverage.checkState():
             outFileAVG = self.dlg.editOutAverage.text()
+            if self.dlg.checkClassifyAverage.checkState():
+                outType=GDT_Byte
+            else:
+                outType=GDT_Float32
+            outDrv = gdal.GetDriverByName(format)
             avgDS = outDrv.Create( outFileAVG, ns, nl, 1, outType, options  )
             avgDS.SetProjection(thisProj)
             avgDS.SetGeoTransform(thisTrans)
        
         if self.dlg.checkMinimum.checkState():
             outFileMIN = self.dlg.editOutMinimum.text()
+            if self.dlg.checkClassifyMinimum.checkState():
+                outType=GDT_Byte
+            else:
+                outType=GDT_Float32
+            outDrv = gdal.GetDriverByName(format)
             minDS = outDrv.Create( outFileMin, ns, nl, 1, outType, options)
             minDS.SetProjection(thisProj)
             minDS.SetGeoTransform(thisTrans)
         
         if self.dlg.checkMaximum.checkState():
             outFileMAX = self.dlg.editOutMaximum.text()
+            if self.dlg.checkClassifyMaximum.checkState():
+                outType=GDT_Byte
+            else:
+                outType=GDT_Float32
+            outDrv = gdal.GetDriverByName(format)
             maxDS = outDrv.Create( outFileMax, ns, nl, 1, outType, options)
             minDS.SetProjection(thisProj)
             minDS.SetGeoTransform(thisTrans)
@@ -397,11 +413,22 @@ class rcmrdTSerieries:
             # get the whole time series for this line
             for ifile in listFID:
                 thisDataset = numpy.ravel(ifile.GetRasterBand(1).ReadAsArray(0, il, ns, 1).astype(float))
-                data.append(thisDataset)
+                data.append(thisDataset*DN2F[0] + DN2F[1])
                 
             data = numpy.asarray(data)
             avg = data.sum(axis=0) / float(len(listFID))
-            
+        
+            recoded = numpy.zeros(avg.shape)
+            if self.dlg.checkClassifyAverage.checkState():
+                # note: do not classify in place
+                iClassVal = 0
+                for iclasses in classes:
+                    iClassVal += 1
+                    wrecode = (avg>= iclasses[0]) * (avg < iclasses[1])
+                    if wrecode.any():
+                        recoded[wrecode]= iClassVal
+                avg = recoded
+        
             # write outputs
             if self.dlg.checkAverage.checkState():
                 avgDS.GetRasterBand(1).WriteArray( avg.reshape(1,ns), 0, il )
