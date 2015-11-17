@@ -32,8 +32,11 @@ from osgeo import gdal
 from osgeo.gdalconst import *
 # Import the code for the dialog
 from rcmrd_tseries_dialog import rcmrdTSerieriesDialog
-import os.path
+import os, os.path
 import datetime
+# for computing natural_breaks distribution
+from pysal.esda.mapclassify import Natural_Breaks
+
 
 
 class rcmrdTSerieries:
@@ -324,7 +327,15 @@ class rcmrdTSerieries:
     def doCompute(self):
 
         classes=[[0.68, 0.98],[0.50, 0.68],[0.30, 0.50],[0.15, 0.30],[-0.10, 0.15]]
-        DN2F = [0.004, -0.1]
+        if self.dlg.checkValReal.isChecked():
+            DN2F = [1.0, 0]
+        elif self.dlg.checkDNSPOT.isChecked():
+            DN2F = [0.004, -0.1]
+        elif self.dlg.checkDNPROBA.isChecked():
+            DN2F = [0.004, -0.08]
+        else:
+            self.logMsg("Error: unknown input value conversion factor. Please revise code")
+            return False
     
         # build list of filenames
         list_dates=[]
@@ -405,6 +416,14 @@ class rcmrdTSerieries:
             minDS.SetProjection(thisProj)
             minDS.SetGeoTransform(thisTrans)
 
+        self.dlg.logMsg("Processing with converion factors: {} {}".format(DN2F[0], DN2F[1]))
+        if self.dlg.checkAverage.checkState():
+            self.dlg.logMsg("Average is computed")
+        if self.dlg.checkMinimum.checkState():
+            self.dlg.logMsg("Minimum is computed")
+        if self.dlg.checkMaximum.checkState():
+            self.dlg.logMsg("Maximum is computed")
+
         data=[]
         
         # parse by line
@@ -424,7 +443,7 @@ class rcmrdTSerieries:
                 iClassVal = 0
                 for iclasses in classes:
                     iClassVal += 1
-                    wrecode = (avg>= iclasses[0]) * (avg < iclasses[1])
+                    wrecode = (avg >= iclasses[0]) * (avg < iclasses[1])
                     if wrecode.any():
                         recoded[wrecode]= iClassVal
                 avg = recoded
@@ -432,13 +451,69 @@ class rcmrdTSerieries:
             # write outputs
             if self.dlg.checkAverage.checkState():
                 avgDS.GetRasterBand(1).WriteArray( avg.reshape(1,ns), 0, il )
-            
 
         # close files
         for ii in listFID:
             ii = None
 
         return True
+    # ___________________
+    # classify the image, using natural break
+    def doClassify(self, fname):
+        # read the image
+        fid = gdal.Open(fname, GA_ReadOnly)
+        ns = fid.RasterXSize
+        nl = fid.RasterYSize
+        data = numpy.ravel( fid.GetRasterBand(1).ReadAsArray(0, 0, ns, nl) )
+        fid.close()
+        # compute natural breaks
+        natBreaks = pysal.esda.mapclassify.Natural_Breaks(data, k=5)
+        bins=[0]
+        bins.extend(natBreaks.bins)
+        len_bins = len(bins)
+        data = None
+        natBreaks = None
+        # write out results
+        self.logMsg("Natural breaks for {}".format(fname))
+        for ii in range(1,len_bins):
+            self.logMsg("Class {}: {}".format(ii, bins[ii]))
+        # instead of duplicating the image in memory, let's do now the work line by line: memory friendly
+        tempName = fname + '_naturalBreaks_'+ random.randomint(10000,100000) +'.tif'
+        fid = gdal.Open(fname, GA_ReadOnly)
+        ns = fid.RasterXSize
+        nl = fid.RasterYSize
+        outDrv = gdal.GetDriverByName('GTiff')
+        outDs = outDrv.Create(tempName, ns, nl, 1, GDT_Byte, ['compress=LZW'])
+        outDs.SetProjection(fid.GetProjection())
+        outDs.SetGeoTransform(fid.GetGeoTransform())
+        for il in range(nl):
+            data = fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1)
+            recoded = numpy.zeros(ns)
+            icode=0
+            for iclass in range(1,len_bins):
+                icode+=1
+                wtr = (data > bins[iclass-1])*(data <= bins[iclass])
+                if wtr.any():
+                    recoded[wtr]=icode
+            outDs.GetRasterBand(1).WriteArray(recoded, 0, il)
+
+        fid.close()
+        outDs.close()
+        # mv temp file into initial file
+        try:
+            os.remove(fname)
+        except OSError:
+            self.logMsg("Could not replace temporary file {} with its classification {}".format(fname, tempName))
+            return False
+        os.rename(tempName, fname)
+    # ___________________
+    def doClassifyAll(self):
+        if self.dlg.checkAverage.checkState():
+            self.doClassify( self.dlg.editOutAverage.text() )
+        if self.dlg.checkMinimum.checkState():
+            self.doClassify( self.dlg.editOutMinimum.text() )
+        if self.dlg.checkMaximum.checkState():
+            self.doClassify( self.dlg.editOutMaximum.text() )
     # ___________________
     def run(self):
         # initialise GUI
@@ -457,5 +532,9 @@ class rcmrdTSerieries:
         if result:
             computeOK=False
             computeOK = self.doCompute()
+            if not computeOK:
+                self.logMsg("Error in processing. Exit.")
+                return False
+            computeOK = self.doClassifyAll()
             if computeOK:
                 self.iface.addRasterLayer(self.dlg.editOutAverage.text(), 'Average')
