@@ -290,7 +290,7 @@ class rcmrdRFE:
         if len(list_files)==0:
             self.logMsg('There is no date to process. Check input directory and file name: {}YYYYMMDD{}. Please select date, with day=1, 11 or 21.'.format(inDir,self.fname['prefix'], self.fname['prefix']))
             return False
-            
+        # check files actually exist
         test=True
         for ii in list_files:
             if not os.path.isfile(ii):
@@ -307,6 +307,7 @@ class rcmrdRFE:
             self.logMsg( 'Opening file {}'.format(ii) )
             thisFID = gdal.Open(ii, GA_ReadOnly)
             listFID.append(thisFID)
+            
         # let's instantiate the output
         thisProj = listFID[0].GetProjection()
         thisTrans = listFID[0].GetGeoTransform()
@@ -332,7 +333,7 @@ class rcmrdRFE:
 
         data=[]
 
-        # display processin info
+        # display processing info
         self.logMsg('Processing with Intensity weight={}, Depth weight={}, and accumulation threshold={}'.format(WRI, WRD, intensityThreshold))
         
         # parse by line
@@ -385,15 +386,15 @@ class rcmrdRFE:
             return False
             
         # check ouput file
-        if self.dlg.editRFD == '':
+        if self.dlg.editRFD.text() == '':
             self.logMsg('Please define an output file name for Rainfall Depth, in "Output files" tab.', QgsMessageLog.CRITICAL)
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
-        if self.dlg.editRFI == '':
+        if self.dlg.editRFI.text() == '':
             self.logMsg('Please define an output file name for Rainfall Intensity, in "Output files" tab.', QgsMessageLog.CRITICAL)
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
-        if self.dlg.editRFE == '':
+        if self.dlg.editRFE.text() == '':
             self.logMsg('Please define an output file name for Rainfall Erosivity, in "Output files" tab.', QgsMessageLog.CRITICAL)
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
@@ -415,8 +416,6 @@ class rcmrdRFE:
                 okToGo = True
         # See if OK was pressed
         if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
             computeOK=False
             computeOK = self.doCompute()
             if computeOK: # load layers
