@@ -75,15 +75,12 @@ class rcmrdRFE:
         self.toolbar.setObjectName(u'rcmrdRFE')
 
         # default values
-        self.inDir='/Users/bruno/Desktop/mesa_data/input/Rainfall'
-        self.dateStart={'day':1,'month':2,'year':2015}
-        self.dateEnd={'day':1,'month':10,'year':2015}
+        #self.inDir='/Users/bruno/Desktop/mesa_data/input/Rainfall'
+        #self.dateStart={'day':1,'month':2,'year':2015}
+        #self.dateEnd={'day':1,'month':10,'year':2015}
 
         # filename convention
         self.fname={'prefix':'', 'suffix':'_rfe.tif'}
-
-        # outfname
-        self.outfile={'outDir':'/Users/bruno/Desktop/mesa_data/output/','rfe':'rfe.tif','rfd':'rfd.tif','rfi':'rfi.tif'}
         
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -194,10 +191,18 @@ class rcmrdRFE:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
-
+   
     # ___________________
     def logMsg(self, msg, errorLvl=QgsMessageLog.INFO):
         QgsMessageLog.logMessage(msg, tag='Rainfall Erosivity',level=errorLvl)
+        
+               
+        prepend=''
+        if errorLvl==QgsMessageLog.WARNING:
+            prepend="Warning! "
+        if errorLvl==QgsMessageLog.CRITICAL:
+            prepend="Critical error! "
+        self.dlg.logTextDump.append(prepend + msg)
         
     # ___________________
     def ParseType(self, type):
@@ -246,22 +251,45 @@ class rcmrdRFE:
 
         return '{}{:02}{:02}'.format(thisYear, thisMonth, thisDay)
     # ___________________
-    Def doCompute(self):
+    def doOpenDir(self, dirSelector):
+        dirName = QFileDialog.getExistingDirectory(self.dlg, self.tr('Choose directory'), os.path.expanduser("~"))
+        if dirName:
+            if dirSelector=='inDir':
+                self.dlg.editInputDir.setText(dirName)
+    # ___________________
+    def doSaveFname(self, selector):
+    
+        text={'rfe':'Rainfall Erosivity', 'rfd':'Rainfall Depth', 'rfi':'Rainfall Intensity'}
+        saveFname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
+        if saveFname:
+            if selector=='rfd':
+                self.dlg.editRFD.setText(saveFname)
+            if selector=='rfi':
+                self.dlg.editRFI.setText(saveFname)
+            if selector=='rfe':
+                self.dlg.editRFE.setText(saveFname)
+    # ___________________
+    def doCompute(self):
         # build list of filenames
         list_dates=[]
         list_files=[]
-        numStart = self.YYYYMMDD_to_Num('{}{:02}{:02}'.format(self.dateStart['year'],self.dateStart['month'],self.dateStart['day']))
-        numEnd = self.YYYYMMDD_to_Num( '{}{:02}{:02}'.format(self.dateEnd['year'], self.dateEnd['month'], self.dateEnd['day']) )
+        intensityThreshold = self.dlg.intensityThreshold.value()
+        WRD = self.dlg.valueWRD.value()
+        WRI = self.dlg.valueWRI.value()
+        
+        numStart = self.YYYYMMDD_to_Num(self.dlg.editDateStart.date().toString('yyyyMMdd'))
+        numEnd = self.YYYYMMDD_to_Num(self.dlg.editDateEnd.date().toString('yyyyMMdd'))
+       
+        inDir=self.dlg.editInputDir.text()
 
         for icount in range(numStart, numEnd + 1):
             thisDate = self.Num_to_YYYYMMDD(icount)
-            self.logMsg('{} -> {}'.format(icount, thisDate))
             list_dates.append(thisDate)
-            list_files.append( os.path.join(self.inDir, '{}{}{}'.format(self.fname['prefix'], thisDate,self.fname['suffix'])) )
+            list_files.append( os.path.join(inDir, '{}{}{}'.format(self.fname['prefix'], thisDate,self.fname['suffix'])) )
 
         if len(list_files)==0:
-            # error message
-            exit
+            self.logMsg('There is no date to process. Check input directory and file name: {}YYYYMMDD{}. Please select date, with day=1, 11 or 21.'.format(inDir,self.fname['prefix'], self.fname['prefix']))
+            return False
             
         test=True
         for ii in list_files:
@@ -270,13 +298,13 @@ class rcmrdRFE:
                 self.logMsg("Missing file: {}".format(ii) )
         # error message and exit
         if test==False:
-            self.logMsg("Time series cannot be processed, missing files. Exit.")
-            exit
+            self.logMsg('Missing files, please check files existence and consistency with dates')
+            return False
 
         # let's open all files
         listFID=[]
         for ii in list_files:
-            self.logMsg(ii)
+            self.logMsg( 'Opening file {}'.format(ii) )
             thisFID = gdal.Open(ii, GA_ReadOnly)
             listFID.append(thisFID)
         # let's instantiate the output
@@ -288,13 +316,13 @@ class rcmrdRFE:
         options=['compress=lzw']
         outType=GDT_Float32
         outDrv = gdal.GetDriverByName(format)
-        self.logMsg( os.path.join(self.outfile['outDir'],self.outfile['rfe']))
-        outDs = outDrv.Create(os.path.join(self.outfile['outDir'],self.outfile['rfe']),
-                              ns, nl, 1, outType, options  )
-        outDsRFD = outDrv.Create( os.path.join( self.outfile['outDir'], self.outfile['rfd']),
-                                  ns, nl, 1, outType, options)
-        outDsRFI = outDrv.Create( os.path.join( self.outfile['outDir'], self.outfile['rfi']),
-                                  ns, nl, 1, outType, options)
+
+        outFileRFE = self.dlg.editRFE.text()
+        outFileRFD = self.dlg.editRFD.text()
+        outFileRFI = self.dlg.editRFI.text()
+        outDs = outDrv.Create( outFileRFE, ns, nl, 1, outType, options  )
+        outDsRFD = outDrv.Create( outFileRFD, ns, nl, 1, outType, options)
+        outDsRFI = outDrv.Create( outFileRFI, ns, nl, 1, outType, options)
         outDs.SetProjection(thisProj)
         outDs.SetGeoTransform(thisTrans)
         outDsRFD.SetProjection(thisProj)
@@ -304,6 +332,9 @@ class rcmrdRFE:
 
         data=[]
 
+        # display processin info
+        self.logMsg('Processing with Intensity weight={}, Depth weight={}, and accumulation threshold={}'.format(WRI, WRD, intensityThreshold))
+        
         # parse by line
         for il in range(nl):
             data=[]
@@ -316,16 +347,14 @@ class rcmrdRFE:
             sumDepth = data.sum(axis=0)
 
             # now we had values >= 40mm: let's put all data < 40mm to 0
-            wLow = data < 40
+            wLow = data < intensityThreshold
             if wLow.any():
                 data[wLow] = 0
             sumIntensity = data.sum(axis=0)
             
-            sumErosivity = self.dlg.valueWRI.value()*sumIntensity + self.dlg.valueWRD.value()* sumDepth
+            sumErosivity = WRI*sumIntensity + WRD* sumDepth
 
             # write outputs
-            self.logMsg('size {}'.format(sumErosivity.shape))
-            self.logMsg('ns {}, nl {}'.format(ns, nl))
             outDs.GetRasterBand(1).WriteArray(sumErosivity.reshape(1,ns), 0, il)
             outDsRFI.GetRasterBand(1).WriteArray(sumIntensity.reshape(1,ns),0,il )
             outDsRFD.GetRasterBand(1).WriteArray(sumDepth.reshape(1,ns),0,il)
@@ -338,8 +367,38 @@ class rcmrdRFE:
     # ___________________
     def doInitGui(self):
         self.dlg.editInputDir.clear()
-        self.dlg.editInputDir.setText( self.inDir )
+        self.dlg.editInputDir.setText( os.path.expanduser("~") )
+        
+        self.dlg.buttonDir.clicked.connect(lambda: self.doOpenDir('inDir'))
+        self.dlg.buttonDirRFD.clicked.connect(lambda: self.doSaveFname('rfd'))
+        self.dlg.buttonDirRFE.clicked.connect(lambda: self.doSaveFname('rfe'))
+        self.dlg.buttonDirRFI.clicked.connect(lambda: self.doSaveFname('rfi'))
 
+    # ____________________
+    # return False if any test is not past
+    def doCheckReady(self):
+        # Check input directory
+        inDir=self.dlg.editInputDir.text()
+        if not os.path.isdir(inDir):
+            self.logMsg('{} is not a directoy. Please correct input directory, in "Input files" tab.'.format(inDir), QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+            
+        # check ouput file
+        if self.dlg.editRFD == '':
+            self.logMsg('Please define an output file name for Rainfall Depth, in "Output files" tab.', QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if self.dlg.editRFI == '':
+            self.logMsg('Please define an output file name for Rainfall Intensity, in "Output files" tab.', QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if self.dlg.editRFE == '':
+            self.logMsg('Please define an output file name for Rainfall Erosivity, in "Output files" tab.', QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+            
+        return True
     # ____________________
     def run(self):
         # initialise GUI
@@ -347,11 +406,20 @@ class rcmrdRFE:
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
-        result = self.dlg.exec_()
+        okToGo=False
+        while not okToGo:
+            result = self.dlg.exec_()
+            if result:
+                okToGo = self.doCheckReady()
+            else:
+                okToGo = True
         # See if OK was pressed
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            self.doCompute()
-
-            
+            computeOK=False
+            computeOK = self.doCompute()
+            if computeOK: # load layers
+                self.iface.addRasterLayer(self.dlg.editRFE.text(), 'Rainfall erosivity')
+                self.iface.addRasterLayer(self.dlg.editRFI.text(), 'Rainfall intensity')
+                self.iface.addRasterLayer(self.dlg.editRFD.text(), 'Rainfall depth')
