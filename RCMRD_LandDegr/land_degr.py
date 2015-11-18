@@ -27,7 +27,6 @@ import resources
 from land_degr_dialog import RCMRD_LandDegrDialog
 import os.path
 
-
 class RCMRD_LandDegr:
     """QGIS Plugin Implementation."""
 
@@ -81,8 +80,12 @@ class RCMRD_LandDegr:
             {"name":"Somalia", "roiXY":[40.965385376,-1.69628316498, 51.417037811,11.989118646]},
             {"name":"Uganda", "roiXY":[29.548459513,-1.475205994, 35.006472615,4.219691875]}]
         self.selectedRoi = None
-
         self.raster_list = []
+        self.dictReproj = None
+
+        self.listIDInputs={}
+        self.listIDWeightsPotential={}
+        self.listIDWeightsActual={}
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -184,7 +187,6 @@ class RCMRD_LandDegr:
             whats_this=self.tr(u'Compute RCMRD LDIM'),
             parent=self.iface.mainWindow())
 
-
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -195,19 +197,34 @@ class RCMRD_LandDegr:
         # remove the toolbar
         del self.toolbar
 
-
     # ____________________
     def logMsg(self, msg, errorLvl = QgsMessageLog.INFO):
         QgsMessageLog.logMessage( msg, tag='RCMRD Land Degradation', level=errorLvl)
         
         prepend=''
         if errorLvl==QgsMessageLog.WARNING:
+            self.iface.messageBar().pushMessage("WARNING", msg)
             prepend="Warning! "
         if errorLvl==QgsMessageLog.CRITICAL:
+            self.iface.messageBar().pushMessage("CRITICAL",msg)
             prepend="Critical error! "
         self.dlg.logTextDump.append(prepend + msg)
     #  ____________________
     # Business logic functions and methods
+    # ____________________
+    # returns uniq of an array, preserve order
+    def uniquify(self, seq):
+        noDupes = []
+        [noDupes.append(i) for i in seq if not noDupes.count(i)]
+        return noDupes
+    # ____________________
+    # Get target extent, in geographical coordinates
+    def getTE(self):
+        xmin=float(self.dlg.ROIWestEdit.text())
+        xmax=float(self.dlg.ROIEastEdit.text())
+        ymin=float(self.dlg.ROISouthEdit.text())
+        ymax=float(self.dlg.ROINorthEdit.text())
+        return [xmin, ymin, xmax, ymax]
     # _____________________
     def ParseType(self, type):
         if type == 'Byte':
@@ -242,36 +259,62 @@ class RCMRD_LandDegr:
         os.makedirs(thisDir)
     # _____________________
     def doTempFile(self, prefix='', suffix='', dir=''):
-        idTag = random.randint(10000,99999)
+        idTag = random.randint(10000, 99999)
         return os.path.join(dir, prefix + '_' + str(idTag) + suffix)
+        
+        # ____________________
+    # search for layer name, returns filename
+    def retrieveFromName(self, name):
+        for ii in raster_list:
+            if ii.name()==name: return ii.source()
+        return False
+    # ____________________
+    def getInputFiles(self):
+]
+        inFiles=[]
+        for kk, ii in self.listIDInputs.iteritems():
+            thisFile = self.retrieveFromName( ii )
+            if thisFile==False:
+                self.logMsg("Could no retrieve file {}".format(  ))
+                return False
+            else:
+                inFiles.append(thisFile)
+                self.dictInput[ii]=thisFile
+                
+        return thisFile
+    # ____________________
+    def getListWeights(self):
+        
     # _____________________    
     # doResample: resample the inputs to a common projection and resolution, will crop images
     # images saved into the working directory
     # note: to read documentation about an algorithm: import processing; processing.alghelp("gdalogr:warpreproject")
-    def doResample(self):
+    def doResample(self, inFileName, output):
         self.doInitDir(self.WrkDir)
 
         # for now, dst is hard coded
         #inCRS = QgsCoordinateReferenceSystem(4326) # actually, must be read from the input file
         newCRS = QgsCoordinateReferenceSystem()
-        newCRS.createFromProj4('+proj=aea +lat_1=18 +lat_2=-4 +lat_0=11 +lon_0=25 +x_0=37.5 +y_0=11')
+        #newCRS.createFromProj4('+proj=aea +lat_1=18 +lat_2=-4 +lat_0=11 +lon_0=25 +x_0=37.5 +y_0=11')
+        newCRS.createFromSrid(4326)
         if not newCRS.isValid():
-            # dump error message
+            self.logMsg("The projection definition is not valid. Exit", QgsMessageLog.CRITICAL)
             return False
 
         # see: https://docs.qgis.org/2.6/en/docs/user_manual/processing_algs/gdalogr/gdal_projections/warpreproject.html
-        inFileName = self.raster_list[self.dlg.comboVegetationIndex.currentIndex()].source()
-        QgsMessageLog.logMessage("input file " + inFileName)
+        # inFileName = self.raster_list[self.dlg.comboVegetationIndex.currentIndex()].source()
+        self.logMsg("input file " + inFileName)
         inFID = gdal.Open(inFileName, GA_ReadOnly)
         inCRS = inFID.GetProjection()
         inTrans = inFID.GetGeoTransform()
         for ii in inTrans:
             QgsMessageLog.logMessage("Trans " + str(ii))
         # for now, we only resample 1 dataset, to be placed in a loop later on
-        extra = "compress=lzw"
-        method = 1 # 1: bilinear
+        thisTE = self.getTE()
+        extraParam = "-te {} {} {} {}".format(thisTE[0], thisTE[1], thisTE[2], thisTE[3])
+        method = 0 # because we resample thematic layers
         # rtype 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
-        output = self.doTempFile('reproject', '.tif', self.WrkDir)
+        
         self.logMsg("Reprojection parameters: ")
         self.logMsg("input file: "+ inFileName)
         self.logMsg("input CRS: "+inCRS)
@@ -279,23 +322,93 @@ class RCMRD_LandDegr:
         self.logMsg("method: "+ str(method) )
         self.logMsg("rtype: " + str(self.ParseType("Float32")) )
         self.logMsg("outfile: " + output)
-        processing.runalg('gdalogr:warpreproject',
-                          inFileName,
-                          inCRS,
-                          newCRS.toProj4(),
+     
+        # processing.runalg("gdalogr:warpreproject")
+        #ALGORITHM: Warp (reproject)
+        #INPUT <ParameterRaster>
+        #SOURCE_SRS <ParameterCrs>
+        #DEST_SRS <ParameterCrs>
+        #NO_DATA <ParameterString>
+        #TR <ParameterNumber>
+        #METHOD <ParameterSelection>
+        #RTYPE <ParameterSelection>
+        #COMPRESS <ParameterSelection>
+        #JPEGCOMPRESSION <ParameterNumber>
+        #ZLEVEL <ParameterNumber>
+        #PREDICTOR <ParameterNumber>
+        #TILED <ParameterBoolean>
+        #BIGTIFF <ParameterSelection>
+        #TFW <ParameterBoolean>
+        #EXTRA <ParameterString>
+        #OUTPUT <OutputRaster>
+
+        #METHOD(Resampling method):	0 - near, 1 - bilinear, 2 - cubic, 3 - cubicspline, 4 - lanczos
+        #RTYPE(Output raster type): 0 - Byte, 1 - Int16, 2 - UInt16, 3 - UInt32, 4 - Int32, 5 - Float32, 6 - Float64
+        #COMPRESS(GeoTIFF options. Compression type): 	0 - NONE, 1 - JPEG, 2 - LZW, 3 - PACKBITS, 4 - DEFLATE
+        #BIGTIFF(Control whether the created file is a BigTIFF or a classic TIFF): 0 - , 1 - YES, 2 - NO, 3 - IF_NEEDED, 4 - IF_SAFER
+        testproc = processing.runalg('gdalogr:warpreproject',
+                          inFileName, # input
+                          inCRS, # source ss
+                          newCRS.toProj4(), # dest srs
                           '', # no data, <parameterString>
-                          0, 
-                          1,
-                          5,
-                          None,
-                          None,
-                          None,
-                          None,
-                          None,
-                          None,
-                          None,
-                          None, 
+                          0, # target resolution: 0=unchanged
+                          0, # method: tematic layers
+                          0, # output raster type
+                          2, # compression
+                          None, # jpeg compression
+                          None, # zlevel
+                          None, # predictor
+                          None, # tiled
+                          None, # bigtiff
+                          None, # TFW
+                          extraParam, # extra 
                           output)
+        if not testproc:
+            self.logMsg("Reprojection failed for file {inFileName}")
+            return False
+                       
+        return True
+    # ____________________
+    def doIndices(self):
+    
+        # open reprojected files
+        fid={}
+        for id, layerName in self.listIDInputs.itermitems():
+            thisFile = self.dictReproj[ layerName ]
+            fid[id] = gdal.Open(thisFile, GA_ReadOnly)
+        
+        # create ouputs
+        ns = fid['VGT'].RasterXSize
+        nl = fid['VGT'].RasterYSize
+        projection = fid['VGT'].GetProjection()
+        geotrans = fid['VGT'].GetGeoTransform()
+        outDrv = gdal.GetDriverByName('GTiff')
+        outFID = {}
+        outFID['Actual'] = outDrv.Create( self.dlg.editOutALDI.text(), ns, nl, 1, GDT_Byte )
+        outFID['Potential'] = outDrv.Create( self.dlg.editOutPLDI.text(), ns, nl, 1, GDT_Byte )
+        
+        # compute indicators for each line
+        for il in range(nl):
+            data={}
+            outData = {}
+            for id in self.listIDInputs:
+                data['id'] = numpy.ravel( gdal.GetRasterBand(1).ReadAsArray(0,il, ns, 1) )
+                
+            # let's compute actual LDIM
+            dataActual=numpy.zeros(ns)
+            for ii, ww in self.listIDWeightsActual:
+                dataActual += ww * data[ii]
+                
+            dataPotential = numpy.zeros(ns)
+            for ii, ww in self.listIDWeightsPotential:
+                dataPotential += ww * data[ii]
+                
+            # save lines
+            outFID['Actual'].GetRasterBand(1).WriteArray( dataActual.reshape(1,ns), 0, il)
+            outFID['Potential'].GetRasterBand(1).WriteArray( dataPotential.reshape(1,ns), 0, il)
+            
+        return True
+        
     # ____________________
     # Run business logic
     # 1./ reproject/resample input files, save in tmp files
@@ -303,20 +416,60 @@ class RCMRD_LandDegr:
     # Will exit on any error, reports for errors
     def doProcessing(self):
         # Inputs are reprojected and resampled
-        # Common: Albers Equal Area, 1km x 1km
-        self.doResample()
-
+        listInput = getInputFiles()
+        if listInput == False:
+            self.logMsg("Missing input files, processing impossible")
+            return False
+        for thisFName in listInput:
+            self.logMsg("Resampling and reprojection file {}".format(thisFName))
+            output = self.doTempFile('reproject', '.tif', self.WrkDir)
+            self.dictReproj['thisFName']=output
+            if self.doResample(thisFName, output) == False:
+                self.logMsg("Reprojection failure for {}".format(thisFName))
+                return False
+        
+        if self.doIndices() == False:
+            self.logMsg("Error in processing indices")
+            return False
+        
+        return True
     # ____________________    
     def doCheckToGo(self):
         if (self.selectedRoi) is None:
+            self.logMsg("Please choose a region, in the 'Settings' tab.")
+            self.logTextDump("Please choose a region, in the 'Settings' tab.")
+            self.dlg.tabWidget.setCurrentWidget(tabLog)
             return False
-        return True
+            
+        # check all files are different
+        listFName=[ii.source() for ii in raster_list]
+        if self.uniquify(listFName) != listFName:
+            self.logMsg("Input files must be different. Please revise inputs in 'Input files' tab.", QgsMessageLog.CRITICAL)
+            self.iface.messageBar.pushMessage("CRITICAL","Error: Input files must be different. Please revise inputs in 'Input files' tab.")
 
+        self.listIDInputs={'VGT':self.dlg.comboVegetationIndex.text(),
+            'RFE':self.dlg.comboRainfallErosivity.text(),
+            'PopDens':self.dlg.comboPopDensity.text(),
+            'SoilErod':self.dlg.comboSoilErodibility.text(),
+            'SlopeLF':self.dlg.comboSlopeLF.text() }
+            
+        self.listIDWeightsPotential={'RFE': self.dlg.spinPotRFE.value(),
+            'PopDens': self.dlg.spinPotPopDens.value(),
+            'SoilErod': self.dlg.spinPotSoilErod.value(),
+            'SlopeLF': self.dlg.spinPotSlopeLF.value()}
+            
+        self.dlg.listIDWeightsActual={'VGT':self.dlg.spinActVGT.value(),
+            'RFE': self.dlg.spinActRFE.value(),
+            'PopDens': self.dlg.spinActPopDens.value(),
+            'SoilErod': self.dlg.spinActSoilErod.value(),
+            'SlopeLF': self.dlg.spinActSlopeLF.value()}
+            
+        return True
     # _____________________
     def displayRoiValues(self):
         if self.dlg.comboChooseArea.currentIndex() is None:
             return
-        elif self.dlg.comboChooseArea.currentIndex()==-1:
+        elif self.dlg.comboChooseArea.currentIndex() == -1:
             self.dlg.RoiWestEdit.clear()
             self.dlg.RoiEastEdit.clear()
             self.dlg.RoiSouthEdit.clear()
@@ -339,7 +492,6 @@ class RCMRD_LandDegr:
             self.dlg.RoiEastEdit.displayText
 
         return
-
     # _____________________
     # add a filename to the list of opened files
     # anf move the index to the last opened file
@@ -359,9 +511,13 @@ class RCMRD_LandDegr:
                 self.dlg.comboSlopeLF.addItem( fname)
                 self.dlg.comboSlopeLF.setCurrentIndex( self.dlg.comboSlopeLF.count()-1 )
 
-    def run(self):
-        """Set up the interface content and call business-logic functions"""
-
+    # ____________________
+    def doInitGUI(self):
+    
+        self.raster_list = []
+        self.dictInput = {}
+        self.dictReproj = {}
+    
         # clear all widgets first
         self.dlg.comboChooseArea.clear()
         self.dlg.comboVegetationIndex.clear()
@@ -376,7 +532,12 @@ class RCMRD_LandDegr:
         self.dlg.lineEditWrkDir.setText(self.WrkDir)
 
         # force opening on the "Help" tab
-        self.dlg.tabWidget.setCurrentIndex(5)
+        self.dlg.tabWidget.setCurrentWidget(self.dlg.tabHelp)
+    # ____________________
+    def run(self):
+        """Set up the interface content and call business-logic functions"""
+
+        self.doInitGui()
 
         self.dlg.logTextDump.append("Initialising...")
         # setup "settings" tools. ROI are defined with xMin, yMin, xMax, yMax
@@ -431,13 +592,11 @@ class RCMRD_LandDegr:
                 checkToGo = self.doCheckToGo()
             else:
                 checkToGo = True
-        self.dlg.logTextDump.append("Application running.")
+        #self.dlg.logTextDump.append("Application running.")
         #self.iface.messageBar().pushMessage("Info","Running")
 
         # See if OK was pressed
         if result:
-            # set focus on the message tab
-            self.dlg.tabWidget.setCurrentIndex(4)
             # then run processings
             self.doProcessing()
             self.iface.messageBar().pushMessage("Info","result is true")

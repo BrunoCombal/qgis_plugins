@@ -54,7 +54,7 @@
     <enum>QTabWidget::Rounded</enum>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>2</number>
    </property>
    <property name="tabsClosable">
     <bool>false</bool>
@@ -203,7 +203,7 @@
     </attribute>
     <layout class="QGridLayout" name="gridLayout_5">
      <item row="2" column="0">
-      <widget class="QLineEdit" name="lineEdit_4"/>
+      <widget class="QLineEdit" name="editOutPLDI"/>
      </item>
      <item row="0" column="0">
       <widget class="QLabel" name="label_17">
@@ -239,7 +239,7 @@
       </widget>
      </item>
      <item row="4" column="0">
-      <widget class="QLineEdit" name="lineEdit_5"/>
+      <widget class="QLineEdit" name="editOutALDI"/>
      </item>
      <item row="4" column="1">
       <widget class="QPushButton" name="pushButton_5">
@@ -299,7 +299,7 @@
       </spacer>
      </item>
      <item row="7" column="5">
-      <widget class="QDoubleSpinBox" name="data1_11">
+      <widget class="QDoubleSpinBox" name="spinActSlopeLF">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -325,7 +325,7 @@
       </widget>
      </item>
      <item row="6" column="5">
-      <widget class="QDoubleSpinBox" name="data1_12">
+      <widget class="QDoubleSpinBox" name="spinActSoilErod">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -351,7 +351,7 @@
       </widget>
      </item>
      <item row="6" column="2">
-      <widget class="QDoubleSpinBox" name="data1_13">
+      <widget class="QDoubleSpinBox" name="spinPotSlopeLF">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -372,12 +372,12 @@
      <item row="6" column="1">
       <widget class="QLabel" name="label_24">
        <property name="text">
-        <string>Slope-LS factor</string>
+        <string>Slope Length factor</string>
        </property>
       </widget>
      </item>
      <item row="5" column="5">
-      <widget class="QDoubleSpinBox" name="data1_14">
+      <widget class="QDoubleSpinBox" name="spinActPopDens">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -403,7 +403,7 @@
       </widget>
      </item>
      <item row="5" column="2">
-      <widget class="QDoubleSpinBox" name="data1_15">
+      <widget class="QDoubleSpinBox" name="spinPotSoilErod">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -445,7 +445,7 @@
       </spacer>
      </item>
      <item row="4" column="5">
-      <widget class="QDoubleSpinBox" name="data1_16">
+      <widget class="QDoubleSpinBox" name="spinActRFE">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -487,7 +487,7 @@
       </spacer>
      </item>
      <item row="4" column="2">
-      <widget class="QDoubleSpinBox" name="data1_17">
+      <widget class="QDoubleSpinBox" name="spintPotPopDens">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -536,7 +536,7 @@
       </widget>
      </item>
      <item row="2" column="2">
-      <widget class="QDoubleSpinBox" name="data1_18">
+      <widget class="QDoubleSpinBox" name="spinPotRFE">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -567,7 +567,7 @@
       </widget>
      </item>
      <item row="2" column="5">
-      <widget class="QDoubleSpinBox" name="data1_19">
+      <widget class="QDoubleSpinBox" name="spinActVGT">
        <property name="decimals">
         <number>0</number>
        </property>
@@ -842,6 +842,42 @@ p, li { white-space: pre-wrap; }
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>comboVegetationIndex</tabstop>
+  <tabstop>buttonVegetationIndex</tabstop>
+  <tabstop>comboRainfallErosivity</tabstop>
+  <tabstop>buttonRainfallErosivity</tabstop>
+  <tabstop>comboPopDensity</tabstop>
+  <tabstop>buttonPopDensity</tabstop>
+  <tabstop>comboSoilErodibility</tabstop>
+  <tabstop>buttonErodibility</tabstop>
+  <tabstop>comboSlopeLF</tabstop>
+  <tabstop>buttonSlopeLF</tabstop>
+  <tabstop>editOutPLDI</tabstop>
+  <tabstop>pushButton_4</tabstop>
+  <tabstop>editOutALDI</tabstop>
+  <tabstop>pushButton_5</tabstop>
+  <tabstop>lineEditWrkDir</tabstop>
+  <tabstop>pushButton</tabstop>
+  <tabstop>spinPotRFE</tabstop>
+  <tabstop>spintPotPopDens</tabstop>
+  <tabstop>spinPotSoilErod</tabstop>
+  <tabstop>spinPotSlopeLF</tabstop>
+  <tabstop>spinActVGT</tabstop>
+  <tabstop>spinActRFE</tabstop>
+  <tabstop>spinActPopDens</tabstop>
+  <tabstop>spinActSoilErod</tabstop>
+  <tabstop>spinActSlopeLF</tabstop>
+  <tabstop>comboChooseArea</tabstop>
+  <tabstop>RoiNorthEdit</tabstop>
+  <tabstop>RoiEastEdit</tabstop>
+  <tabstop>RoiSouthEdit</tabstop>
+  <tabstop>RoiWestEdit</tabstop>
+  <tabstop>lineEditTR_meter</tabstop>
+  <tabstop>logTextDump</tabstop>
+  <tabstop>textBrowser</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

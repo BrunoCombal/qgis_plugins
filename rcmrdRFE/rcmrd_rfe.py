@@ -33,7 +33,9 @@ from osgeo.gdalconst import *
 # Import the code for the dialog
 from rcmrd_rfe_dialog import rcmrdRFEDialog
 import os.path
-
+import random
+# for computing natural_breaks distribution
+from pysal.esda.mapclassify import Natural_Breaks
 
 class rcmrdRFE:
     """QGIS Plugin Implementation."""
@@ -196,11 +198,12 @@ class rcmrdRFE:
     def logMsg(self, msg, errorLvl=QgsMessageLog.INFO):
         QgsMessageLog.logMessage(msg, tag='Rainfall Erosivity',level=errorLvl)
         
-               
         prepend=''
         if errorLvl==QgsMessageLog.WARNING:
+            self.iface.messageBar.pushMessage("WARNING", msg)
             prepend="Warning! "
         if errorLvl==QgsMessageLog.CRITICAL:
+            self.iface.messageBar.pushMessage("CRITICAL",msg)
             prepend="Critical error! "
         self.dlg.logTextDump.append(prepend + msg)
         
@@ -269,14 +272,11 @@ class rcmrdRFE:
             if selector=='rfe':
                 self.dlg.editRFE.setText(saveFname)
     # ___________________
-    def doCompute(self):
-        # build list of filenames
-        list_dates=[]
+    # create the list of files using input dir, prefix, suffix, and date loop (assuming day in 1, 01, 21)
+    # return list_files or False
+    def doCreateFNameList(self):
         list_files=[]
-        intensityThreshold = self.dlg.intensityThreshold.value()
-        WRD = self.dlg.valueWRD.value()
-        WRI = self.dlg.valueWRI.value()
-        
+        list_dates=[]
         numStart = self.YYYYMMDD_to_Num(self.dlg.editDateStart.date().toString('yyyyMMdd'))
         numEnd = self.YYYYMMDD_to_Num(self.dlg.editDateEnd.date().toString('yyyyMMdd'))
        
@@ -300,6 +300,16 @@ class rcmrdRFE:
         if test==False:
             self.logMsg('Missing files, please check files existence and consistency with dates')
             return False
+            
+        return list_files
+    # ___________________
+    def doCompute(self):
+        # build list of filenames
+        intensityThreshold = self.dlg.intensityThreshold.value()
+        WRD = self.dlg.valueWRD.value()
+        WRI = self.dlg.valueWRI.value()
+        
+        list_files = self.doCreateFNameList()
 
         # let's open all files
         listFID=[]
@@ -367,8 +377,9 @@ class rcmrdRFE:
         return True
     # ___________________
     def doInitGui(self):
-        self.dlg.editInputDir.clear()
-        self.dlg.editInputDir.setText( os.path.expanduser("~") )
+        #self.dlg.editInputDir.clear()
+        #self.dlg.editInputDir.setText( os.path.expanduser("~") )
+        # Do not init the input, so they keep memory of the preceeding choice
         
         self.dlg.buttonDir.clicked.connect(lambda: self.doOpenDir('inDir'))
         self.dlg.buttonDirRFD.clicked.connect(lambda: self.doSaveFname('rfd'))
@@ -384,7 +395,10 @@ class rcmrdRFE:
             self.logMsg('{} is not a directoy. Please correct input directory, in "Input files" tab.'.format(inDir), QgsMessageLog.CRITICAL)
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
-            
+        # check input files
+        list_files = self.doCreateFNameList()
+        if list_files == False:
+            self.logMsg('Missing input files. Please check input directory, prefix, suffix and dates definition in "Input files" tab.', QgsMessageLog.CRITICAL)
         # check ouput file
         if self.dlg.editRFD.text() == '':
             self.logMsg('Please define an output file name for Rainfall Depth, in "Output files" tab.', QgsMessageLog.CRITICAL)
@@ -399,6 +413,76 @@ class rcmrdRFE:
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
             
+        return True
+    #___________________
+    # classify the image, using natural break
+    # images can be large, and the analysis to take a lot of time and memory: only 1/4 pixels and lines are used.
+    
+    def doClassify(self, fname):
+        # read the image: 1/NSkip lines, 1/NSkip column
+        fid = gdal.Open(fname, GA_ReadOnly)
+        ns = fid.RasterXSize
+        nl = fid.RasterYSize
+        data=[]
+        if min(ns, nl)> 3000:
+            NSkip=12
+        elif min(ns,nl)> 2000:
+            NSkip=10
+        elif min(ns,nl) > 1000:
+            NSkip=8
+        else:
+            NSkip=6
+        
+        self.logMsg("Classification: reading input")
+        for il in range(0, nl, NSkip):
+            thisData = numpy.ravel( fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1) )
+            data.append(thisData[range(0, ns, NSkip)])
+        fid = None
+        # compute natural breaks: the object must be unidimensional, and have a copy function
+        self.logMsg("Classification: searching for natural_breaks")
+        natBreaks = Natural_Breaks(numpy.ravel(data), k=5)
+        bins=[0]
+        bins.extend(natBreaks.bins)
+        len_bins = len(bins)
+        data = None
+        natBreaks = None
+        # write out results
+        self.logMsg("Natural breaks for {}".format(fname))
+        self.logMsg("Classification: recoding")
+        for ii in range(1,len_bins):
+            self.logMsg("Class {}: {}".format(ii, bins[ii]))
+        # instead of duplicating the image in memory, let's do now the work line by line: memory friendly
+        tempName = '{}_naturalBreaks_{}.tif'.format(fname, random.randint(1,100000))
+        fid = gdal.Open(fname, GA_ReadOnly)
+        ns = fid.RasterXSize
+        nl = fid.RasterYSize
+        outDrv = gdal.GetDriverByName('GTiff')
+        outDs = outDrv.Create(tempName, ns, nl, 1, GDT_Byte, ['compress=LZW'])
+        outDs.SetProjection(fid.GetProjection())
+        outDs.SetGeoTransform(fid.GetGeoTransform())
+        self.logMsg("Classification: saving data")
+        for il in range(nl):
+            data = numpy.ravel(fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1))
+            recoded = numpy.zeros(ns)
+            icode=0
+            for iclass in range(1,len_bins):
+                icode+=1
+                wtr = (data > bins[iclass-1])*(data <= bins[iclass])
+                if wtr.any():
+                    recoded[wtr]=icode
+            outDs.GetRasterBand(1).WriteArray(recoded.reshape(1,ns), 0, il)
+
+        fid=None
+        outDs=None
+        # mv temp file into initial file
+        self.logMsg("Classification: mv file")
+        try:
+            os.remove(fname)
+            os.rename(tempName, fname)
+        except OSError:
+            self.logMsg("Could not replace temporary file {} with its classification {}".format(fname, tempName))
+            return False
+                
         return True
     # ____________________
     def run(self):
@@ -418,7 +502,13 @@ class rcmrdRFE:
         if result:
             computeOK=False
             computeOK = self.doCompute()
+            if not computeOK:
+                self.logMsg("Error in processing. Exit.")
+                return False
+            computeOK = self.doClassify( self.dlg.editRFE.text() )
             if computeOK: # load layers
                 self.iface.addRasterLayer(self.dlg.editRFE.text(), 'Rainfall erosivity')
                 self.iface.addRasterLayer(self.dlg.editRFI.text(), 'Rainfall intensity')
                 self.iface.addRasterLayer(self.dlg.editRFD.text(), 'Rainfall depth')
+            else:
+                self.logMsg('Could not classify Erosivity image')
