@@ -87,6 +87,9 @@ class RCMRD_LandDegr:
         self.listIDWeightsPotential={}
         self.listIDWeightsActual={}
 
+        SettingsOrganisation='RCMRD_QGIS'
+        SettingsApplication='RCMRD_LandDegr'
+
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -270,7 +273,7 @@ class RCMRD_LandDegr:
         return False
     # ____________________
     def getInputFiles(self):
-]
+
         inFiles=[]
         for kk, ii in self.listIDInputs.iteritems():
             thisFile = self.retrieveFromName( ii )
@@ -282,9 +285,7 @@ class RCMRD_LandDegr:
                 self.dictInput[ii]=thisFile
                 
         return thisFile
-    # ____________________
-    def getListWeights(self):
-        
+
     # _____________________    
     # doResample: resample the inputs to a common projection and resolution, will crop images
     # images saved into the working directory
@@ -465,6 +466,15 @@ class RCMRD_LandDegr:
             'SlopeLF': self.dlg.spinActSlopeLF.value()}
             
         return True
+
+    # _____________________
+    def getShpBB(self):
+
+        layer = QgsVectorLayer( self.dlg.editSHPName.text(), "Mask", 'ogr')
+        if not layer.isValid():
+            print "Layer failed to load!"
+        # open shp
+        feature.geometry().boundingBox().toString()
     # _____________________
     def displayRoiValues(self):
         if self.dlg.comboChooseArea.currentIndex() is None:
