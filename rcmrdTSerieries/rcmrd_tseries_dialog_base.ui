@@ -63,7 +63,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="tabInfiles">
     <attribute name="title">
@@ -74,7 +74,7 @@
       <rect>
        <x>0</x>
        <y>0</y>
-       <width>862</width>
+       <width>711</width>
        <height>381</height>
       </rect>
      </property>
@@ -193,7 +193,7 @@
       <item row="9" column="1">
        <widget class="QLineEdit" name="editSuffix"/>
       </item>
-      <item row="0" column="2">
+      <item row="0" column="2" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
        <widget class="QPushButton" name="buttonInDir">
         <property name="text">
          <string>...</string>
@@ -265,6 +265,24 @@
        </widget>
       </item>
      </layout>
+     <zorder>checkValReal</zorder>
+     <zorder>checkDNSPOT</zorder>
+     <zorder>label_14</zorder>
+     <zorder>label_10</zorder>
+     <zorder>label_8</zorder>
+     <zorder>label_9</zorder>
+     <zorder>editDateEnd</zorder>
+     <zorder>label_7</zorder>
+     <zorder>label_4</zorder>
+     <zorder>editInDir</zorder>
+     <zorder>editPrefix</zorder>
+     <zorder>editSuffix</zorder>
+     <zorder>label_6</zorder>
+     <zorder>label_3</zorder>
+     <zorder>label_2</zorder>
+     <zorder>editDateStart</zorder>
+     <zorder>checkDNPROBA</zorder>
+     <zorder>buttonInDir</zorder>
     </widget>
    </widget>
    <widget class="QWidget" name="tabOutfiles">
@@ -400,6 +418,9 @@
       </item>
       <item row="10" column="0">
        <widget class="QLabel" name="label_13">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Output filename</string>
         </property>
@@ -427,6 +448,9 @@
       </item>
       <item row="10" column="3">
        <widget class="QPushButton" name="buttonOutMaximum">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>...</string>
         </property>
@@ -474,6 +498,29 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>tabs</tabstop>
+  <tabstop>editInDir</tabstop>
+  <tabstop>buttonInDir</tabstop>
+  <tabstop>checkValReal</tabstop>
+  <tabstop>checkDNSPOT</tabstop>
+  <tabstop>checkDNPROBA</tabstop>
+  <tabstop>editPrefix</tabstop>
+  <tabstop>editSuffix</tabstop>
+  <tabstop>editDateStart</tabstop>
+  <tabstop>editDateEnd</tabstop>
+  <tabstop>checkAverage</tabstop>
+  <tabstop>editOutAverage</tabstop>
+  <tabstop>buttonOutAverage</tabstop>
+  <tabstop>checkClassifyAverage</tabstop>
+  <tabstop>checkMinimum</tabstop>
+  <tabstop>editOutMinimum</tabstop>
+  <tabstop>buttonOutMinimum</tabstop>
+  <tabstop>checkMaximum</tabstop>
+  <tabstop>editOutMaximum</tabstop>
+  <tabstop>buttonOutMaximum</tabstop>
+  <tabstop>logTextDump</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
