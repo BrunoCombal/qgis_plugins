@@ -397,6 +397,23 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>tabs</tabstop>
+  <tabstop>editInputDir</tabstop>
+  <tabstop>buttonDir</tabstop>
+  <tabstop>editDateStart</tabstop>
+  <tabstop>editDateEnd</tabstop>
+  <tabstop>editRFD</tabstop>
+  <tabstop>buttonDirRFD</tabstop>
+  <tabstop>editRFI</tabstop>
+  <tabstop>buttonDirRFI</tabstop>
+  <tabstop>editRFE</tabstop>
+  <tabstop>buttonDirRFE</tabstop>
+  <tabstop>valueWRD</tabstop>
+  <tabstop>valueWRI</tabstop>
+  <tabstop>intensityThreshold</tabstop>
+  <tabstop>logTextDump</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
