@@ -67,7 +67,6 @@ class RCMRD_LandDegr:
         self.toolbar.setObjectName(u'RCMRD_LandDegr')
 
         # Declare user instance variables
-        self.WrkDir = os.path.join( os.path.expanduser("~"), "qgis_rcmrdplugin" )
         self.roiDefinitions = None
         self.roiDefinitions = [{"name":"IGAD", "roiXY":[21.8094, -4.6775, 51.417, 22.227]},
             {"name":"Djibouti", "roiXY":[41.749110148,10.929824931, 43.418711785,12.707912502]},
@@ -265,8 +264,8 @@ class RCMRD_LandDegr:
         idTag = random.randint(10000, 99999)
         return os.path.join(dir, prefix + '_' + str(idTag) + suffix)
         
-        # ____________________
-    # search for layer name, returns filename
+    # ____________________
+    # search for a layer name, return filename
     def retrieveFromName(self, name):
         for ii in raster_list:
             if ii.name()==name: return ii.source()
@@ -285,13 +284,12 @@ class RCMRD_LandDegr:
                 self.dictInput[ii]=thisFile
                 
         return thisFile
-
     # _____________________    
     # doResample: resample the inputs to a common projection and resolution, will crop images
     # images saved into the working directory
     # note: to read documentation about an algorithm: import processing; processing.alghelp("gdalogr:warpreproject")
     def doResample(self, inFileName, output):
-        self.doInitDir(self.WrkDir)
+        self.doInitDir( self.dlg.editWrkDir.text() )
 
         # for now, dst is hard coded
         #inCRS = QgsCoordinateReferenceSystem(4326) # actually, must be read from the input file
@@ -423,7 +421,7 @@ class RCMRD_LandDegr:
             return False
         for thisFName in listInput:
             self.logMsg("Resampling and reprojection file {}".format(thisFName))
-            output = self.doTempFile('reproject', '.tif', self.WrkDir)
+            output = self.doTempFile('reproject', '.tif', self.dlg.editWrkDir.text() )
             self.dictReproj['thisFName']=output
             if self.doResample(thisFName, output) == False:
                 self.logMsg("Reprojection failure for {}".format(thisFName))
@@ -438,7 +436,7 @@ class RCMRD_LandDegr:
     def doCheckToGo(self):
         if (self.selectedRoi) is None:
             self.logMsg("Please choose a region, in the 'Settings' tab.")
-            self.logTextDump("Please choose a region, in the 'Settings' tab.")
+            self.dlg.logTextDump("Please choose a region, in the 'Settings' tab.")
             self.dlg.tabWidget.setCurrentWidget(tabLog)
             return False
             
@@ -466,7 +464,6 @@ class RCMRD_LandDegr:
             'SlopeLF': self.dlg.spinActSlopeLF.value()}
             
         return True
-
     # _____________________
     def getShpBB(self):
 
@@ -501,7 +498,7 @@ class RCMRD_LandDegr:
             self.dlg.RoiNorthEdit.setText( "%12.7f" % [ f["roiXY"][3] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
             self.dlg.RoiEastEdit.displayText
 
-        return
+        return True
     # _____________________
     # add a filename to the list of opened files
     # anf move the index to the last opened file
@@ -520,7 +517,27 @@ class RCMRD_LandDegr:
             elif name=='Slope LF':
                 self.dlg.comboSlopeLF.addItem( fname)
                 self.dlg.comboSlopeLF.setCurrentIndex( self.dlg.comboSlopeLF.count()-1 )
-
+                
+        return True
+    # ____________________
+    def saveFile(self, selector):
+        text={'PotLDIM':'Potential LDIM', 'ActLDIM':'Actual LDIM'}
+        fname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
+    
+        if fname:
+            if selector=='PotLDIM':
+                self.dlg.editOutPLDI.setText(fname)
+            if selector=='ActLDIM':
+                self.dlg.editAPLDI.setText(fname)
+    
+        return True
+    #____________________
+    def saveDir(self, selector):
+        text={'WrkDir':'intermediate processing'}
+        dname = QFileDialog.getExistingDirectory(self.dlg, self.tr("Choose a directory to save {}".format(text[selector])), os.path.expanduser("~"))
+        if dname:
+            if selector=='WrkDir':
+                self.dlg.editWrkDir.setText(dname)
     # ____________________
     def doInitGUI(self):
     
@@ -528,7 +545,7 @@ class RCMRD_LandDegr:
         self.dictInput = {}
         self.dictReproj = {}
     
-        # clear all widgets first
+        # clear files selectors
         self.dlg.comboChooseArea.clear()
         self.dlg.comboVegetationIndex.clear()
         self.dlg.comboPopDensity.clear()
@@ -537,19 +554,13 @@ class RCMRD_LandDegr:
         self.dlg.comboSoilErodibility.clear()
         self.dlg.logTextDump.clear()
 
-        # initialise lineEditWrkDir with self.WrkDir
-        self.dlg.lineEditWrkDir.clear()
-        self.dlg.lineEditWrkDir.setText(self.WrkDir)
+        # if wrkDir not set, then initialise, else leave it as it is
+        if self.dlg.editWrkDir.text()=='':
+            self.dlg.editWrkDir.setText(self.dlg.editWrkDir.text())
 
         # force opening on the "Help" tab
         self.dlg.tabWidget.setCurrentWidget(self.dlg.tabHelp)
-    # ____________________
-    def run(self):
-        """Set up the interface content and call business-logic functions"""
-
-        self.doInitGui()
-
-        self.dlg.logTextDump.append("Initialising...")
+        
         # setup "settings" tools. ROI are defined with xMin, yMin, xMax, yMax
         self.dlg.comboChooseArea.addItems( [ ii["name"] for ii in self.roiDefinitions ] )
         for ii in self.roiDefinitions:
@@ -557,6 +568,26 @@ class RCMRD_LandDegr:
         self.dlg.comboChooseArea.currentIndexChanged.connect(self.displayRoiValues)
         self.dlg.comboChooseArea.setCurrentIndex(-1)
         self.displayRoiValues()
+        
+        # connect the file chooser function to the buttons
+        self.dlg.buttonVegetationIndex.clicked.connect(lambda: self.openFile('Vegetation Index'))
+        self.dlg.buttonRainfallErosivity.clicked.connect(lambda: self.openFile('Rainfall Erosivity'))
+        self.dlg.buttonPopDensity.clicked.connect(lambda: self.openFile('Population Density'))
+        self.dlg.buttonSlopeLF.clicked.connect(lambda: self.openFile('Slope LF'))
+        
+        # connect buttons to saveFile functions
+        self.dlg.buttonPotLDIM.clicked.connect(lambda: self.saveFile('PotLDIM') )
+        self.dlg.buttonActLDIM.clicked.connect(lambda: self.saveFile('ActDIM') )
+        
+        # define temp directory
+        self.dlg.editWrkDir.setText( os.path.join( os.path.expanduser("~"), "qgis_rcmrdplugin" ) )
+        self.dlg.buttonWrkDir.clicked.connect(lambda: self.saveDir('WrkDir'))
+
+    # ____________________
+    def run(self):
+        """Set up the interface content and call business-logic functions"""
+
+        self.doInitGUI()
 
         # setup input files
         self.dlg.logTextDump.append("Scanning loaded files")
@@ -585,11 +616,6 @@ class RCMRD_LandDegr:
             self.dlg.comboSlopeLF.addItem(ii.name())
             self.dlg.comboSoilErodibility.addItem(ii.name())
 
-        # connect the file chooser function to the buttons
-        self.dlg.buttonVegetationIndex.clicked.connect(lambda: self.openFile('Vegetation Index'))
-        self.dlg.buttonRainfallErosivity.clicked.connect(lambda: self.openFile('Rainfall Erosivity'))
-        self.dlg.buttonPopDensity.clicked.connect(lambda: self.openFile('Population Density'))
-        self.dlg.buttonSlopeLF.clicked.connect(lambda: self.openFile('Slope LF'))
 
         # show the dialog
         self.dlg.show()
