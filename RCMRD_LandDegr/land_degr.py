@@ -79,13 +79,13 @@ class RCMRD_LandDegr:
             {"name":"Somalia", "roiXY":[40.965385376,-1.69628316498, 51.417037811,11.989118646]},
             {"name":"Uganda", "roiXY":[29.548459513,-1.475205994, 35.006472615,4.219691875]}]
         self.selectedRoi = None
-        self.raster_list = []
-        self.dictReproj = None
+        self.raster_list = [] # list all files open in QGis, contains file objects
+        self.dictReproj = None # dictionary: 'input filename' -> reprojected filename
 
-        self.listIDInputs={}
+        self.listIDInputs={} # dictionary: key -> layer name. See keys definition in the code ('VGT', 'RFE', ...)
         self.listIDWeightsPotential={}
         self.listIDWeightsActual={}
-
+        
         SettingsOrganisation='RCMRD_QGIS'
         SettingsApplication='RCMRD_LandDegr'
 
@@ -222,10 +222,10 @@ class RCMRD_LandDegr:
     # ____________________
     # Get target extent, in geographical coordinates
     def getTE(self):
-        xmin=float(self.dlg.ROIWestEdit.text())
-        xmax=float(self.dlg.ROIEastEdit.text())
-        ymin=float(self.dlg.ROISouthEdit.text())
-        ymax=float(self.dlg.ROINorthEdit.text())
+        xmin=float(self.dlg.RoiWestEdit.text())
+        xmax=float(self.dlg.RoiEastEdit.text())
+        ymin=float(self.dlg.RoiSouthEdit.text())
+        ymax=float(self.dlg.RoiNorthEdit.text())
         return [xmin, ymin, xmax, ymax]
     # _____________________
     def ParseType(self, type):
@@ -267,23 +267,26 @@ class RCMRD_LandDegr:
     # ____________________
     # search for a layer name, return filename
     def retrieveFromName(self, name):
-        for ii in raster_list:
-            if ii.name()==name: return ii.source()
+        for ii in self.raster_list:
+            if ii.name()==name:
+                return ii.source()
         return False
     # ____________________
+    # return an array of input files (file paths)
+    # For each type of file (listed in listIDInputs), tries macthing corresponding name from rasters_layer
+    # note: do not trust sorting order
     def getInputFiles(self):
-
         inFiles=[]
         for kk, ii in self.listIDInputs.iteritems():
             thisFile = self.retrieveFromName( ii )
             if thisFile==False:
-                self.logMsg("Could no retrieve file {}".format(  ))
+                self.logMsg("Could no retrieve file {} associated to key {}".format( ii, kk ))
                 return False
             else:
                 inFiles.append(thisFile)
                 self.dictInput[ii]=thisFile
                 
-        return thisFile
+        return inFiles
     # _____________________    
     # doResample: resample the inputs to a common projection and resolution, will crop images
     # images saved into the working directory
@@ -302,26 +305,17 @@ class RCMRD_LandDegr:
 
         # see: https://docs.qgis.org/2.6/en/docs/user_manual/processing_algs/gdalogr/gdal_projections/warpreproject.html
         # inFileName = self.raster_list[self.dlg.comboVegetationIndex.currentIndex()].source()
-        self.logMsg("input file " + inFileName)
         inFID = gdal.Open(inFileName, GA_ReadOnly)
         inCRS = inFID.GetProjection()
         inTrans = inFID.GetGeoTransform()
-        for ii in inTrans:
-            QgsMessageLog.logMessage("Trans " + str(ii))
+        inDataType = inFID.GetRasterBand(1).DataType
         # for now, we only resample 1 dataset, to be placed in a loop later on
         thisTE = self.getTE()
+        TR = self.dlg.spinTR_deg.value()
         extraParam = "-te {} {} {} {}".format(thisTE[0], thisTE[1], thisTE[2], thisTE[3])
         method = 0 # because we resample thematic layers
         # rtype 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
-        
-        self.logMsg("Reprojection parameters: ")
-        self.logMsg("input file: "+ inFileName)
-        self.logMsg("input CRS: "+inCRS)
-        self.logMsg("output CRS: "+newCRS.toProj4())
-        self.logMsg("method: "+ str(method) )
-        self.logMsg("rtype: " + str(self.ParseType("Float32")) )
-        self.logMsg("outfile: " + output)
-     
+             
         # processing.runalg("gdalogr:warpreproject")
         #ALGORITHM: Warp (reproject)
         #INPUT <ParameterRaster>
@@ -350,8 +344,8 @@ class RCMRD_LandDegr:
                           inCRS, # source ss
                           newCRS.toProj4(), # dest srs
                           '', # no data, <parameterString>
-                          0, # target resolution: 0=unchanged
-                          0, # method: tematic layers
+                          TR, # target resolution: 0=unchanged
+                          0, # method: thematic layers, use 0
                           0, # output raster type
                           2, # compression
                           None, # jpeg compression
@@ -367,39 +361,56 @@ class RCMRD_LandDegr:
             return False
                        
         return True
+    
     # ____________________
     def doIndices(self):
     
+        self.logMsg("In do indices")
+    
         # open reprojected files
         fid={}
-        for id, layerName in self.listIDInputs.itermitems():
-            thisFile = self.dictReproj[ layerName ]
+        for id, layerName in self.listIDInputs.iteritems():
+            thisFile = self.dictReproj[ self.retrieveFromName( self.listIDInputs[id] )]
             fid[id] = gdal.Open(thisFile, GA_ReadOnly)
         
-        # create ouputs
+        # create ouputs from info read in VGT
+        # this implies that all files were reprojected to the same footprint and resolution
         ns = fid['VGT'].RasterXSize
         nl = fid['VGT'].RasterYSize
         projection = fid['VGT'].GetProjection()
         geotrans = fid['VGT'].GetGeoTransform()
         outDrv = gdal.GetDriverByName('GTiff')
         outFID = {}
-        outFID['Actual'] = outDrv.Create( self.dlg.editOutALDI.text(), ns, nl, 1, GDT_Byte )
-        outFID['Potential'] = outDrv.Create( self.dlg.editOutPLDI.text(), ns, nl, 1, GDT_Byte )
+        outFID['Actual'] = outDrv.Create( self.dlg.editOutALDI.text(), ns, nl, 1, GDT_Float32 )
+        outFID['Potential'] = outDrv.Create( self.dlg.editOutPLDI.text(), ns, nl, 1, GDT_Float32 )
+        # define outputs projections and geotransformations
+        for ii in ['Actual', 'Potential']:
+            outFID[ii].SetProjection(projection)
+            outFID[ii].SetGeoTransform(geotrans)
+        
+        # infos
+        self.logMsg("Weights Actual")
+        for ii, ww in self.listIDWeightsActual.iteritems():
+            self.logMsg("IDWeightsActual[{}]={}".format(ii,ww))
+        self.logMsg("Weights Potential")
+        for ii, ww in self.listIDWeightsPotential.iteritems():
+            self.logMsg("IDWeightsPotential[{}]={}".format(ii,ww))
         
         # compute indicators for each line
         for il in range(nl):
             data={}
             outData = {}
             for id in self.listIDInputs:
-                data['id'] = numpy.ravel( gdal.GetRasterBand(1).ReadAsArray(0,il, ns, 1) )
+                data[ id ] = numpy.ravel( fid[id].GetRasterBand(1).ReadAsArray(0,il, ns, 1) )
                 
             # let's compute actual LDIM
             dataActual=numpy.zeros(ns)
-            for ii, ww in self.listIDWeightsActual:
+            for ii, ww in self.listIDWeightsActual.iteritems():
                 dataActual += ww * data[ii]
                 
+                
             dataPotential = numpy.zeros(ns)
-            for ii, ww in self.listIDWeightsPotential:
+            for ii, ww in self.listIDWeightsPotential.iteritems():
                 dataPotential += ww * data[ii]
                 
             # save lines
@@ -415,18 +426,19 @@ class RCMRD_LandDegr:
     # Will exit on any error, reports for errors
     def doProcessing(self):
         # Inputs are reprojected and resampled
-        listInput = getInputFiles()
+        listInput = self.getInputFiles()
         if listInput == False:
             self.logMsg("Missing input files, processing impossible")
             return False
         for thisFName in listInput:
             self.logMsg("Resampling and reprojection file {}".format(thisFName))
             output = self.doTempFile('reproject', '.tif', self.dlg.editWrkDir.text() )
-            self.dictReproj['thisFName']=output
+            self.dictReproj[ thisFName ] = output
             if self.doResample(thisFName, output) == False:
                 self.logMsg("Reprojection failure for {}".format(thisFName))
                 return False
-        
+                
+        # now compute indices
         if self.doIndices() == False:
             self.logMsg("Error in processing indices")
             return False
@@ -436,28 +448,28 @@ class RCMRD_LandDegr:
     def doCheckToGo(self):
         if (self.selectedRoi) is None:
             self.logMsg("Please choose a region, in the 'Settings' tab.")
-            self.dlg.logTextDump("Please choose a region, in the 'Settings' tab.")
+            self.dlg.logTextDump.append("Please choose a region, in the 'Settings' tab.")
             self.dlg.tabWidget.setCurrentWidget(tabLog)
             return False
             
         # check all files are different
-        listFName=[ii.source() for ii in raster_list]
+        listFName=[ii.source() for ii in self.raster_list]
         if self.uniquify(listFName) != listFName:
             self.logMsg("Input files must be different. Please revise inputs in 'Input files' tab.", QgsMessageLog.CRITICAL)
             self.iface.messageBar.pushMessage("CRITICAL","Error: Input files must be different. Please revise inputs in 'Input files' tab.")
 
-        self.listIDInputs={'VGT':self.dlg.comboVegetationIndex.text(),
-            'RFE':self.dlg.comboRainfallErosivity.text(),
-            'PopDens':self.dlg.comboPopDensity.text(),
-            'SoilErod':self.dlg.comboSoilErodibility.text(),
-            'SlopeLF':self.dlg.comboSlopeLF.text() }
+        self.listIDInputs={'VGT':self.dlg.comboVegetationIndex.currentText(),
+            'RFE':self.dlg.comboRainfallErosivity.currentText(),
+            'PopDens':self.dlg.comboPopDensity.currentText(),
+            'SoilErod':self.dlg.comboSoilErodibility.currentText(),
+            'SlopeLF':self.dlg.comboSlopeLF.currentText() }
             
         self.listIDWeightsPotential={'RFE': self.dlg.spinPotRFE.value(),
             'PopDens': self.dlg.spinPotPopDens.value(),
             'SoilErod': self.dlg.spinPotSoilErod.value(),
             'SlopeLF': self.dlg.spinPotSlopeLF.value()}
             
-        self.dlg.listIDWeightsActual={'VGT':self.dlg.spinActVGT.value(),
+        self.listIDWeightsActual={'VGT':self.dlg.spinActVGT.value(),
             'RFE': self.dlg.spinActRFE.value(),
             'PopDens': self.dlg.spinActPopDens.value(),
             'SoilErod': self.dlg.spinActSoilErod.value(),
@@ -503,18 +515,30 @@ class RCMRD_LandDegr:
     # add a filename to the list of opened files
     # anf move the index to the last opened file
     def openFile(self, name):
+               
         fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open raster file"))
         if fname:
-            if name=='Vegetation Index':
-                self.dlg.comboVegetationIndex.addItem(fname)
+            rlayer = QgsRasterLayer(fname, name)
+            if not rlayer.isValid():
+                self.logMsg("Could not open this file")
+                self.dlg.logTextDump.append( "Could not open file {}".format(name) )
+                self.dlg.tabWidget.setCurrentWidget(tabLog)
+                return False
+            self.raster_list.append(rlayer)
+            # now put it in the correct list and make it the current selection
+            if name=='VGT':
+                self.dlg.comboVegetationIndex.addItem(name)
                 self.dlg.comboVegetationIndex.setCurrentIndex( self.dlg.comboVegetationIndex.count()-1 )
-            elif name=='Rainfall Erosivity':
+            elif name=='RFE':
                 self.dlg.comboRainfallErosivity.addItem(fname)
                 self.dlg.comboRainfallErosivity.setCurrentIndex( self.dlg.comboRainfallErosivity.count()-1 )
-            elif name=='Population Density':
+            elif name=='PopDens':
                 self.dlg.comboPopDensity.addItem(fname)
                 self.dlg.comboPopDensity.setCurrentIndex( self.dlg.comboPopDensity.count()-1 )
-            elif name=='Slope LF':
+            elif name=='SoilErod':
+                self.dlg.comboSoilErodibility.addItem(fname)
+                self.dlg.comboSoilErodibility.setCurrentIndex( self.dlg.comboSoilErodibility.count()-1 )
+            elif name=='SlopeLF':
                 self.dlg.comboSlopeLF.addItem( fname)
                 self.dlg.comboSlopeLF.setCurrentIndex( self.dlg.comboSlopeLF.count()-1 )
                 
@@ -528,9 +552,18 @@ class RCMRD_LandDegr:
             if selector=='PotLDIM':
                 self.dlg.editOutPLDI.setText(fname)
             if selector=='ActLDIM':
-                self.dlg.editAPLDI.setText(fname)
+                self.dlg.editOutALDI.setText(fname)
     
         return True
+    # ___________________
+    def TR_degEdited(self):
+        # spot VGT has pixel centered coordinates and consideres 112 pixels per degrees
+        # for pixel corners coordinates, one considers 111 pixels per degrees
+        # convert into meters
+        self.dlg.spinTR_m.setValue( self.dlg.spinTR_deg.value()* 111.0 * 1000.0 )
+    def TR_mEdited(self):
+        # convert into degrees
+        self.dlg.spinTR_deg.setValue( self.dlg.spinTR_m.value() / ( 1000.0 * 111.0) )
     #____________________
     def saveDir(self, selector):
         text={'WrkDir':'intermediate processing'}
@@ -568,20 +601,25 @@ class RCMRD_LandDegr:
         self.dlg.comboChooseArea.currentIndexChanged.connect(self.displayRoiValues)
         self.dlg.comboChooseArea.setCurrentIndex(-1)
         self.displayRoiValues()
-        
+
         # connect the file chooser function to the buttons
-        self.dlg.buttonVegetationIndex.clicked.connect(lambda: self.openFile('Vegetation Index'))
-        self.dlg.buttonRainfallErosivity.clicked.connect(lambda: self.openFile('Rainfall Erosivity'))
-        self.dlg.buttonPopDensity.clicked.connect(lambda: self.openFile('Population Density'))
-        self.dlg.buttonSlopeLF.clicked.connect(lambda: self.openFile('Slope LF'))
-        
+        self.dlg.buttonVegetationIndex.clicked.connect(lambda: self.openFile('VGT'))
+        self.dlg.buttonRainfallErosivity.clicked.connect(lambda: self.openFile('RFE'))
+        self.dlg.buttonPopDensity.clicked.connect(lambda: self.openFile('PopDens'))
+        self.dlg.buttonErodibility.clicked.connect(lambda: self.openFile('SoilErod'))
+        self.dlg.buttonSlopeLF.clicked.connect(lambda: self.openFile('SlopeLF'))
+
         # connect buttons to saveFile functions
         self.dlg.buttonPotLDIM.clicked.connect(lambda: self.saveFile('PotLDIM') )
-        self.dlg.buttonActLDIM.clicked.connect(lambda: self.saveFile('ActDIM') )
+        self.dlg.buttonActLDIM.clicked.connect(lambda: self.saveFile('ActLDIM') )
         
         # define temp directory
         self.dlg.editWrkDir.setText( os.path.join( os.path.expanduser("~"), "qgis_rcmrdplugin" ) )
         self.dlg.buttonWrkDir.clicked.connect(lambda: self.saveDir('WrkDir'))
+        
+        # pixel resolution control
+        self.dlg.spinTR_m.valueChanged.connect(self.TR_mEdited)
+        self.dlg.spinTR_deg.valueChanged.connect(self.TR_degEdited)
 
     # ____________________
     def run(self):
