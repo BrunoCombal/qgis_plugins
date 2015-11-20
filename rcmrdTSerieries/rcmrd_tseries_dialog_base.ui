@@ -63,7 +63,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>1</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="tabInfiles">
     <attribute name="title">
@@ -79,54 +79,66 @@
       </rect>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="2" column="1">
-       <widget class="QRadioButton" name="checkValReal">
-        <property name="text">
-         <string>Real values (Float, -0.1 to 0.98)</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-        <attribute name="buttonGroup">
-         <string notr="true">buttonGroup</string>
-        </attribute>
-       </widget>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="editInDir"/>
       </item>
-      <item row="3" column="1">
-       <widget class="QRadioButton" name="checkDNSPOT">
+      <item row="0" column="2" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
+       <widget class="QPushButton" name="buttonInDir">
         <property name="text">
-         <string>DN (0...255), SPOT-VGT encoding</string>
-        </property>
-        <attribute name="buttonGroup">
-         <string notr="true">buttonGroup</string>
-        </attribute>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLabel" name="label_14">
-        <property name="text">
-         <string>Input files encoding:</string>
+         <string>...</string>
         </property>
        </widget>
       </item>
-      <item row="12" column="1">
-       <widget class="QLabel" name="label_10">
-        <property name="text">
-         <string>The processor assumes days are numbered 01, 11, 21</string>
+      <item row="9" column="1">
+       <widget class="QLineEdit" name="editSuffix">
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>16777215</height>
+         </size>
         </property>
        </widget>
       </item>
-      <item row="14" column="0">
-       <widget class="QLabel" name="label_8">
-        <property name="text">
-         <string>End date</string>
+      <item row="8" column="1">
+       <widget class="QLineEdit" name="editPrefix">
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="inputMask">
+         <string notr="true"/>
+        </property>
+        <property name="placeholderText">
+         <string notr="true"/>
         </property>
        </widget>
       </item>
-      <item row="11" column="1">
-       <widget class="QLabel" name="label_9">
+      <item row="9" column="0">
+       <widget class="QLabel" name="label_4">
         <property name="text">
-         <string>Define here the first and last date in the time series to process.</string>
+         <string>Suffix</string>
+        </property>
+       </widget>
+      </item>
+      <item row="17" column="1">
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="13" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Start date</string>
         </property>
        </widget>
       </item>
@@ -150,54 +162,55 @@
         </property>
        </widget>
       </item>
-      <item row="13" column="0">
-       <widget class="QLabel" name="label_7">
+      <item row="11" column="1">
+       <widget class="QLabel" name="label_9">
         <property name="text">
-         <string>Start date</string>
+         <string>Define here the first and last date in the time series to process.</string>
         </property>
        </widget>
       </item>
-      <item row="15" column="1">
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="9" column="0">
-       <widget class="QLabel" name="label_4">
+      <item row="14" column="0">
+       <widget class="QLabel" name="label_8">
         <property name="text">
-         <string>Suffix</string>
+         <string>End date</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QLineEdit" name="editInDir"/>
-      </item>
-      <item row="8" column="1">
-       <widget class="QLineEdit" name="editPrefix">
-        <property name="inputMask">
-         <string notr="true"/>
-        </property>
-        <property name="placeholderText">
-         <string notr="true"/>
+      <item row="12" column="1">
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string>The processor assumes days are numbered 01, 11, 21</string>
         </property>
        </widget>
       </item>
-      <item row="9" column="1">
-       <widget class="QLineEdit" name="editSuffix"/>
-      </item>
-      <item row="0" column="2" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
-       <widget class="QPushButton" name="buttonInDir">
+      <item row="1" column="1">
+       <widget class="QLabel" name="label_14">
         <property name="text">
-         <string>...</string>
+         <string>Input files encoding:</string>
         </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QRadioButton" name="checkDNSPOT">
+        <property name="text">
+         <string>DN (0...255), SPOT-VGT encoding</string>
+        </property>
+        <attribute name="buttonGroup">
+         <string notr="true">buttonGroup</string>
+        </attribute>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QRadioButton" name="checkValReal">
+        <property name="text">
+         <string>Real values (Float, -0.1 to 0.98)</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+        <attribute name="buttonGroup">
+         <string notr="true">buttonGroup</string>
+        </attribute>
        </widget>
       </item>
       <item row="7" column="1">
@@ -264,6 +277,43 @@
         </attribute>
        </widget>
       </item>
+      <item row="16" column="2">
+       <widget class="QPushButton" name="buttonClipShp">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="1">
+       <widget class="QLineEdit" name="editClipShp">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="0">
+       <widget class="QCheckBox" name="checkClipShp">
+        <property name="text">
+         <string>Clip with vector</string>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="1">
+       <spacer name="verticalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
      </layout>
      <zorder>checkValReal</zorder>
      <zorder>checkDNSPOT</zorder>
@@ -283,6 +333,10 @@
      <zorder>editDateStart</zorder>
      <zorder>checkDNPROBA</zorder>
      <zorder>buttonInDir</zorder>
+     <zorder>editClipShp</zorder>
+     <zorder>checkClipShp</zorder>
+     <zorder>buttonClipShp</zorder>
+     <zorder>verticalSpacer_5</zorder>
     </widget>
    </widget>
    <widget class="QWidget" name="tabOutfiles">

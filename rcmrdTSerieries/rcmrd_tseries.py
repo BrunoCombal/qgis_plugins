@@ -34,6 +34,8 @@ from osgeo.gdalconst import *
 from rcmrd_tseries_dialog import rcmrdTSerieriesDialog
 import os, os.path
 import datetime
+import random
+import processing
 
 class rcmrdTSerieries:
     """QGIS Plugin Implementation."""
@@ -73,6 +75,7 @@ class rcmrdTSerieries:
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'rcmrdTSerieries')
         self.toolbar.setObjectName(u'rcmrdTSerieries')
+        self.clipLayer = None # the layer loaded in memory
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -190,10 +193,10 @@ class rcmrdTSerieries:
         
         prepend=''
         if errorLvl==QgsMessageLog.WARNING:
-            self.dlg.messageBar().pushMessage("WARNING", msg)
+            self.iface.messageBar().pushMessage("WARNING", msg)
             prepend="Warning! "
         if errorLvl==QgsMessageLog.CRITICAL:
-            self.dlg.messageBar().pushMessage("CRITICAL",msg)
+            self.iface.messageBar().pushMessage("CRITICAL",msg)
             prepend="Critical error! "
         self.dlg.logTextDump.append(prepend + msg)
         
@@ -250,6 +253,19 @@ class rcmrdTSerieries:
             if dirSelector=='inDir':
                 self.dlg.editInDir.setText(dirName)
     # ___________________
+    def doOpenFile(self, selector):
+        text = {'clipShp': 'clipping shapefile'}
+        fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open {}".format(text[selector])) )
+        if fname:
+            if selector=='clipShp':
+                # it must be a shapefile, let's open it
+                self.clipLayer = QgsVectorLayer( fname, "Clip", 'ogr')
+                if not self.clipLayer.isValid():
+                    self.logMsg( "Could not load vector layer {} with {}".format(self.clipLayer.name(), fname), QgsMessageLog.WARNING)
+                    self.dlg.logTextDump.append( "Could not load vector layer {}".format(self.clipLayer) )
+                else:
+                    self.dlg.editClipShp.setText(fname)
+    # ___________________
     def doSaveFname(self, selector):
     
         text={'average':'Average', 'min':'Minimum', 'max':'Maximum'}
@@ -262,9 +278,18 @@ class rcmrdTSerieries:
             if selector=='maximum':
                 self.dlg.editOutMaximum.setText(saveFname)
     # ___________________
+    def doClipShpWidgetsUpdate(self):
+        if self.dlg.checkClipShp.isChecked():
+            self.dlg.editClipShp.setEnabled(True)
+            self.dlg.buttonClipShp.setEnabled(True)
+        else:
+            self.dlg.editClipShp.setEnabled(False)
+            self.dlg.buttonClipShp.setEnabled(False)
+    # ___________________
     def doInitGui(self):
-        self.dlg.editInDir.clear()
-        self.dlg.editInDir.setText( os.path.expanduser("~") )
+        #self.dlg.editInDir.clear()
+        if self.dlg.editInDir.text()=='':
+            self.dlg.editInDir.setText( os.path.expanduser("~") )
         self.dlg.buttonInDir.clicked.connect( (lambda: self.doOpenDir('inDir')) )
         
         self.dlg.editPrefix.clear()
@@ -275,7 +300,10 @@ class rcmrdTSerieries:
         
         self.dlg.editOutAverage.clear()
         self.dlg.buttonOutAverage.clicked.connect((lambda: self.doSaveFname('average')))
-
+        
+        # signals for clipShp widgets
+        self.dlg.checkClipShp.stateChanged.connect( self.doClipShpWidgetsUpdate )
+        self.dlg.buttonClipShp.clicked.connect( (lambda: self.doOpenFile('clipShp') ) )
     # ____________________
     # return False if any test is not past
     def doCheckReady(self):
@@ -358,9 +386,86 @@ class rcmrdTSerieries:
             return False
             
         return list_files
+
+    # ___________________
+    def doTmpName(self, fname):
+        return '{}_{}.tif'.format(fname, random.randint(0,10000))
+    # ___________________
+    # clip (gdalwarp) the preceding result, then replace it
+    def doClip(self):
+        inFiles= [ self.dlg.editOutAverage.text(), self.dlg.editOutMinimum.text(), self.dlg.editOutMaximum.text() ]
+        inCheck= [ self.dlg.checkAverage.isChecked(), self.dlg.checkMinimum.isChecked(), self.dlg.checkMaximum.isChecked() ]
+        inFname= []
+        inCRS  = []
+
+        # first create the list of files that need to be opened (depends on user choice)
+        for ii, cc in zip(inFiles, inCheck):
+            if cc == True: # skip filenames which are not set
+                thisFid = gdal.Open(ii, GA_ReadOnly)
+                if thisFid is None:
+                    self.dlg.logMsg("Could not open file {}".format(ii))
+                    return False
+                thisCRS = thisFid.GetProjection()
+                inFname.append(ii)
+                inCRS.append(thisCRS)
+                thisFid=None # close file, as we'll need to delete it later on
+    
+        for thisName, thisCRS in zip(inFname, inCRS):
+            ext = self.clipLayer.extent()
+            bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
+            # processing.runalg("gdalogr:warpreproject")
+            #ALGORITHM: Warp (reproject)
+            #INPUT <ParameterRaster>
+            #SOURCE_SRS <ParameterCrs>
+            #DEST_SRS <ParameterCrs>
+            #NO_DATA <ParameterString>
+            #TR <ParameterNumber>
+            #METHOD <ParameterSelection>
+            #RTYPE <ParameterSelection>
+            #COMPRESS <ParameterSelection>
+            #JPEGCOMPRESSION <ParameterNumber>
+            #ZLEVEL <ParameterNumber>
+            #PREDICTOR <ParameterNumber>
+            #TILED <ParameterBoolean>
+            #BIGTIFF <ParameterSelection>
+            #TFW <ParameterBoolean>
+            #EXTRA <ParameterString>
+            #OUTPUT <OutputRaster>
+            extraParam = '-te {} {} {} {} -cutline {}'.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
+            output = self.doTmpName(thisName)
+            self.logMsg("input is {}; utput is {}".format(thisName, output))
+            self.logMsg("extraParam {}".format(extraParam))
+            #METHOD(Resampling method):	0 - near, 1 - bilinear, 2 - cubic, 3 - cubicspline, 4 - lanczos
+            #RTYPE(Output raster type): 0 - Byte, 1 - Int16, 2 - UInt16, 3 - UInt32, 4 - Int32, 5 - Float32, 6 - Float64
+            #COMPRESS(GeoTIFF options. Compression type): 	0 - NONE, 1 - JPEG, 2 - LZW, 3 - PACKBITS, 4 - DEFLATE
+            #BIGTIFF(Control whether the created file is a BigTIFF or a classic TIFF): 0 - , 1 - YES, 2 - NO, 3 - IF_NEEDED, 4 - IF_SAFER
+            testproc = processing.runalg('gdalogr:warpreproject',
+                          thisName, # input
+                          thisCRS, # source crs
+                          thisCRS, # dest srs
+                          '0', # no data, <parameterString>
+                          0, # target resolution: 0=unchanged
+                          0, # method: 0, as we are only clipping
+                          0, # output raster type
+                          2, # compression
+                          None, # jpeg compression
+                          None, # zlevel
+                          None, # predictor
+                          None, # tiled
+                          None, # bigtiff
+                          None, # TFW
+                          extraParam, # extra 
+                          output)
+            if not testproc:
+                self.logMsg("Reprojection failed for file {inFileName}")
+                return False
+     
+        return thisName, output
     # ___________________
     def doCompute(self):
 
+        self.logMsg("--- Starting processing ---")
+    
         classes=[[0.68, 0.98],[0.50, 0.68],[0.30, 0.50],[0.15, 0.30],[-0.10, 0.15]]
         if self.dlg.checkValReal.isChecked():
             DN2F = [1.0, 0]
@@ -373,6 +478,14 @@ class rcmrdTSerieries:
             return False
     
         list_files = self.doCreateFNameList()
+        if not list_files:
+            self.logMsg("Could not find files matching input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
+            self.iface.messageBar().pushMessage("CRITICAL", "Could not find files matcing input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if len(list_files)==0:
+            self.logMsg("no input file, please check inputs.")
+            return False
 
         # let's open all files
         listFID=[]
@@ -462,9 +575,14 @@ class rcmrdTSerieries:
         # close files
         for ii in listFID:
             ii = None
-
+        if self.dlg.checkAverage.checkState():
+            avgDS = None
+        if self.dlg.checkMinimum.checkState():
+            minDS = None
+        if self.dlg.checkMaximum.checkState():
+            maxDS = None        
+        
         return True
- 
     # ___________________
     def run(self):
         # initialise GUI
@@ -483,8 +601,17 @@ class rcmrdTSerieries:
         if result:
             computeOK=False
             computeOK = self.doCompute()
-            if not computeOK:
+            if computeOK and self.dlg.checkClipShp.isChecked():
+                returnClip = self.doClip()
+            if returnClip==False:
                 self.logMsg("Error in processing. Exit.")
-                return False
             else:
+                # replace original with clipped file
+                try:
+                    os.remove( returnClip[0] )
+                    os.rename( returnClip[1], returnClip[0] )
+                except OSError:
+                    self.logMsg("Could not replace temporary file {} with its clipped version {}".format(returnClip[0], returnClip[1]))
+                    return False
+                
                 self.iface.addRasterLayer(self.dlg.editOutAverage.text(), 'Average')
