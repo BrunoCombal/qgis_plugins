@@ -481,7 +481,7 @@ class RCMRD_LandDegr:
 
         layer = QgsVectorLayer( self.dlg.editSHPName.text(), "Mask", 'ogr')
         if not layer.isValid():
-            print "Layer failed to load!"
+            self.logMsg("Layer failed to load!")
         # open shp
         feature.geometry().boundingBox().toString()
     # _____________________
