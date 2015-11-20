@@ -48,35 +48,41 @@
     <widget class="QWidget" name="gridLayoutWidget">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>19</y>
-       <width>701</width>
-       <height>361</height>
+       <x>0</x>
+       <y>0</y>
+       <width>711</width>
+       <height>381</height>
       </rect>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_4">
+      <item row="1" column="2">
+       <widget class="QPushButton" name="buttonDir">
         <property name="text">
-         <string>End date</string>
+         <string>...</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_2">
+      <item row="17" column="1">
+       <spacer name="verticalSpacer_6">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="11" column="1">
+       <widget class="QLabel" name="label_16">
         <property name="text">
-         <string>Input directory</string>
+         <string>The processor assumes days are numbered 01, 11, 21</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Start date</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
+      <item row="14" column="1">
        <widget class="QDateEdit" name="editDateEnd">
         <property name="maximumSize">
          <size>
@@ -99,7 +105,7 @@
       <item row="1" column="1">
        <widget class="QLineEdit" name="editInputDir"/>
       </item>
-      <item row="2" column="1">
+      <item row="12" column="1">
        <widget class="QDateEdit" name="editDateStart">
         <property name="maximumSize">
          <size>
@@ -119,7 +125,7 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="15" column="1">
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -132,12 +138,114 @@
         </property>
        </spacer>
       </item>
-      <item row="1" column="2">
-       <widget class="QPushButton" name="buttonDir">
+      <item row="14" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>End date</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Input directory</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Start date</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="editSuffix">
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QLabel" name="label_15">
+        <property name="text">
+         <string>Define here the first and last date in the time series to process.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="label_12">
+        <property name="text">
+         <string>Filenames definition: this processor will search for filenames starting with 'prefix' and ending with 'suffix'</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_13">
+        <property name="text">
+         <string>Prefix</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="editPrefix">
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>16777215</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_14">
+        <property name="text">
+         <string>Suffix</string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="2">
+       <widget class="QPushButton" name="buttonClipShp">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>...</string>
         </property>
        </widget>
+      </item>
+      <item row="16" column="1">
+       <widget class="QLineEdit" name="editClipShp">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="0">
+       <widget class="QCheckBox" name="checkClipShp">
+        <property name="text">
+         <string>Clip vector</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <spacer name="verticalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
       </item>
      </layout>
     </widget>

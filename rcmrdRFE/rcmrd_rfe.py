@@ -27,6 +27,7 @@ from qgis.core import *
 import resources
 import string
 import numpy
+import processing
 # gdal
 from osgeo import gdal
 from osgeo.gdalconst import *
@@ -80,9 +81,8 @@ class rcmrdRFE:
         #self.inDir='/Users/bruno/Desktop/mesa_data/input/Rainfall'
         #self.dateStart={'day':1,'month':2,'year':2015}
         #self.dateEnd={'day':1,'month':10,'year':2015}
-
-        # filename convention
-        self.fname={'prefix':'', 'suffix':'_rfe.tif'}
+        
+        self.clipLayer = None # the layer loaded in memory
         
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -98,7 +98,6 @@ class rcmrdRFE:
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('rcmrdRFE', message)
-
 
     def add_action(
         self,
@@ -200,10 +199,10 @@ class rcmrdRFE:
         
         prepend=''
         if errorLvl==QgsMessageLog.WARNING:
-            self.iface.messageBar.pushMessage("WARNING", msg)
+            self.iface.messageBar().pushMessage("WARNING", msg)
             prepend="Warning! "
         if errorLvl==QgsMessageLog.CRITICAL:
-            self.iface.messageBar.pushMessage("CRITICAL",msg)
+            self.iface.messageBar().pushMessage("CRITICAL",msg)
             prepend="Critical error! "
         self.dlg.logTextDump.append(prepend + msg)
         
@@ -260,6 +259,19 @@ class rcmrdRFE:
             if dirSelector=='inDir':
                 self.dlg.editInputDir.setText(dirName)
     # ___________________
+    def doOpenFile(self, selector):
+        text = {'clipShp': 'clipping shapefile'}
+        fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open {}".format(text[selector])) )
+        if fname:
+            if selector=='clipShp':
+                # it must be a shapefile, let's open it
+                self.clipLayer = QgsVectorLayer( fname, "Clip", 'ogr')
+                if not self.clipLayer.isValid():
+                    self.logMsg( "Could not load vector layer {} with {}".format(self.clipLayer.name(), fname), QgsMessageLog.WARNING)
+                    self.dlg.logTextDump.append( "Could not load vector layer {}".format(self.clipLayer) )
+                else:
+                    self.dlg.editClipShp.setText(fname)
+    # ___________________
     def doSaveFname(self, selector):
     
         text={'rfe':'Rainfall Erosivity', 'rfd':'Rainfall Depth', 'rfi':'Rainfall Intensity'}
@@ -277,15 +289,15 @@ class rcmrdRFE:
     def doCreateFNameList(self):
         list_files=[]
         list_dates=[]
-        numStart = self.YYYYMMDD_to_Num(self.dlg.editDateStart.date().toString('yyyyMMdd'))
-        numEnd = self.YYYYMMDD_to_Num(self.dlg.editDateEnd.date().toString('yyyyMMdd'))
+        numStart = self.YYYYMMDD_to_Num( self.dlg.editDateStart.date().toString('yyyyMMdd') )
+        numEnd = self.YYYYMMDD_to_Num( self.dlg.editDateEnd.date().toString('yyyyMMdd') )
        
         inDir=self.dlg.editInputDir.text()
 
         for icount in range(numStart, numEnd + 1):
             thisDate = self.Num_to_YYYYMMDD(icount)
             list_dates.append(thisDate)
-            list_files.append( os.path.join(inDir, '{}{}{}'.format(self.fname['prefix'], thisDate,self.fname['suffix'])) )
+            list_files.append( os.path.join(inDir, '{}{}{}'.format(self.dlg.editPrefix.text(), thisDate, self.dlg.editSuffix.text() )) )
 
         if len(list_files)==0:
             self.logMsg('There is no date to process. Check input directory and file name: {}YYYYMMDD{}. Please select date, with day=1, 11 or 21.'.format(inDir,self.fname['prefix'], self.fname['prefix']))
@@ -310,6 +322,14 @@ class rcmrdRFE:
         WRI = self.dlg.valueWRI.value()
         
         list_files = self.doCreateFNameList()
+        if not list_files:
+            self.logMsg("Could not find files matching input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
+            self.iface.messageBar().pushMessage("CRITICAL", "Could not find files matcing input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if len(list_files)==0:
+            self.logMsg("no input file, please check inputs.")
+            return False
 
         # let's open all files
         listFID=[]
@@ -373,8 +393,68 @@ class rcmrdRFE:
         # close files
         for ii in listFID:
             ii = None
+        outDs = None
+        outDsRFI = None
+        outDsRFD = None
 
         return True
+    # ___________________
+    def doTmpName(self, fname):
+        return '{}_{}.tif'.format(fname, random.randint(0,10000))
+    # ___________________
+    def doClip(self):
+        inFiles= [ self.dlg.editRFE.text(), self.dlg.editRFD.text(), self.dlg.editRFI.text() ]
+        inFname= []
+        inCRS  = []
+
+        # first create the list of files that need to be opened (depends on user choice)
+        for ii in inFiles:
+            thisFid = gdal.Open(ii, GA_ReadOnly)
+            if thisFid is None:
+                self.dlg.logMsg("Could not open file {}".format(ii))
+                return False
+            thisCRS = thisFid.GetProjection()
+            inFname.append(ii)
+            inCRS.append(thisCRS)
+            thisFid = None # close file, as we'll need to delete it later on
+    
+        for thisName, thisCRS in zip(inFname, inCRS):
+            ext = self.clipLayer.extent()
+            bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
+            extraParam = '-te {} {} {} {} -cutline {}'.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
+            output = self.doTmpName(thisName)
+            self.logMsg("input is {}; output is {}".format(thisName, output))
+            self.logMsg("extraParam {}".format(extraParam))
+            testproc = processing.runalg('gdalogr:warpreproject',
+                          thisName, # input
+                          thisCRS, # source crs
+                          thisCRS, # dest srs
+                          '0', # no data, <parameterString>
+                          0, # target resolution: 0=unchanged
+                          0, # method: 0, as we are only clipping
+                          0, # output raster type
+                          2, # compression
+                          None, # jpeg compression
+                          None, # zlevel
+                          None, # predictor
+                          None, # tiled
+                          None, # bigtiff
+                          None, # TFW
+                          extraParam, # extra 
+                          output)
+            if not testproc:
+                self.logMsg("Reprojection failed for file {inFileName}")
+                return False
+     
+        return thisName, output
+    # ___________________
+    def doClipShpWidgetsUpdate(self):
+        if self.dlg.checkClipShp.isChecked():
+            self.dlg.editClipShp.setEnabled(True)
+            self.dlg.buttonClipShp.setEnabled(True)
+        else:
+            self.dlg.editClipShp.setEnabled(False)
+            self.dlg.buttonClipShp.setEnabled(False)
     # ___________________
     def doInitGui(self):
         #self.dlg.editInputDir.clear()
@@ -386,13 +466,21 @@ class rcmrdRFE:
         self.dlg.buttonDirRFE.clicked.connect(lambda: self.doSaveFname('rfe'))
         self.dlg.buttonDirRFI.clicked.connect(lambda: self.doSaveFname('rfi'))
 
+        # prefix
+        self.dlg.editPrefix.clear()
+        # suffix
+        self.dlg.editSuffix.setText('_rfe.tif')
+        
+        # signals for clipShp widgets
+        self.dlg.checkClipShp.stateChanged.connect( self.doClipShpWidgetsUpdate )
+        self.dlg.buttonClipShp.clicked.connect( (lambda: self.doOpenFile('clipShp') ) )
     # ____________________
     # return False if any test is not past
     def doCheckReady(self):
         # Check input directory
         inDir=self.dlg.editInputDir.text()
         if not os.path.isdir(inDir):
-            self.logMsg('{} is not a directoy. Please correct input directory, in "Input files" tab.'.format(inDir), QgsMessageLog.CRITICAL)
+            self.logMsg('{} is not a directory. Please correct input directory, in "Input files" tab.'.format(inDir), QgsMessageLog.CRITICAL)
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
         # check input files
@@ -484,6 +572,15 @@ class rcmrdRFE:
             return False
                 
         return True
+    # ___________________
+    def doReplaceFiles(self,files):
+        try:
+            os.remove(files[0])
+            os.rename(files[1], files[0])
+        except OSError:
+            self.logMsg("Could not replace temporary file {} with its clipped version {}".format(files[0], files[1]))
+            return False
+        return True
     # ____________________
     def run(self):
         # initialise GUI
@@ -506,6 +603,11 @@ class rcmrdRFE:
                 self.logMsg("Error in processing. Exit.")
                 return False
             computeOK = self.doClassify( self.dlg.editRFE.text() )
+            clipResult = self.doClip()
+            if clipResult == False:
+                self.logMsg("Problem when clipping results")
+            else:
+                self.doReplaceFiles(clipResult)
             if computeOK: # load layers
                 self.iface.addRasterLayer(self.dlg.editRFE.text(), 'Rainfall erosivity')
                 self.iface.addRasterLayer(self.dlg.editRFI.text(), 'Rainfall intensity')
