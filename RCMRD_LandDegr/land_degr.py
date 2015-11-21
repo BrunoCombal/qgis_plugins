@@ -223,12 +223,12 @@ class RCMRD_LandDegr:
         return noDupes
     # ____________________
     # Get target extent, in geographical coordinates
-    def getTE(self):
-        xmin=float(self.dlg.RoiWestEdit.text())
-        xmax=float(self.dlg.RoiEastEdit.text())
-        ymin=float(self.dlg.RoiSouthEdit.text())
-        ymax=float(self.dlg.RoiNorthEdit.text())
-        return [xmin, ymin, xmax, ymax]
+    #def getTE(self):
+    #    xmin=float(self.dlg.RoiWestEdit.text())
+    #    xmax=float(self.dlg.RoiEastEdit.text())
+    #    ymin=float(self.dlg.RoiSouthEdit.text())
+    #    ymax=float(self.dlg.RoiNorthEdit.text())
+    #    return [xmin, ymin, xmax, ymax]
     # _____________________
     def ParseType(self, type):
         if type == 'Byte':
@@ -496,32 +496,32 @@ class RCMRD_LandDegr:
             
         return True
     # _____________________
-    def displayRoiValues(self):
-        if self.dlg.comboChooseArea.currentIndex() is None:
-            return
-        elif self.dlg.comboChooseArea.currentIndex() == -1:
-            self.dlg.RoiWestEdit.clear()
-            self.dlg.RoiEastEdit.clear()
-            self.dlg.RoiSouthEdit.clear()
-            self.dlg.RoiNorthEdit.clear()
-        else:
-            listRoiNames = []
-            listRoiNames = [ ii["name"] for ii in self.roiDefinitions ]
-            self.selectedRoi = listRoiNames[self.dlg.comboChooseArea.currentIndex()]
-            # West, xmin, roiXY[0]
-            self.dlg.RoiWestEdit.setText( "%12.7f" % [ f["roiXY"][0] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
-            self.dlg.RoiWestEdit.displayText
-            # East, xmax, roiXY[2]
-            self.dlg.RoiEastEdit.setText( "%12.7f" % [ f["roiXY"][2] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
-            self.dlg.RoiEastEdit.displayText
-            # South, ymin, roiXY[1]
-            self.dlg.RoiSouthEdit.setText( "%12.7f" % [ f["roiXY"][1] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
-            self.dlg.RoiEastEdit.displayText
-            # North ymax, roiXY[3]
-            self.dlg.RoiNorthEdit.setText( "%12.7f" % [ f["roiXY"][3] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
-            self.dlg.RoiEastEdit.displayText
-
-        return True
+    #def displayRoiValues(self):
+    #    if self.dlg.comboChooseArea.currentIndex() is None:
+    #        return
+    #    elif self.dlg.comboChooseArea.currentIndex() == -1:
+    #        self.dlg.RoiWestEdit.clear()
+    #        self.dlg.RoiEastEdit.clear()
+    #        self.dlg.RoiSouthEdit.clear()
+    #        self.dlg.RoiNorthEdit.clear()
+    #    else:
+    #        listRoiNames = []
+    #        listRoiNames = [ ii["name"] for ii in self.roiDefinitions ]
+    #        self.selectedRoi = listRoiNames[self.dlg.comboChooseArea.currentIndex()]
+    #        # West, xmin, roiXY[0]
+    #        self.dlg.RoiWestEdit.setText( "%12.7f" % [ f["roiXY"][0] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
+    #        self.dlg.RoiWestEdit.displayText
+    #        # East, xmax, roiXY[2]
+    #        self.dlg.RoiEastEdit.setText( "%12.7f" % [ f["roiXY"][2] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
+    #        self.dlg.RoiEastEdit.displayText
+    #        # South, ymin, roiXY[1]
+    #        self.dlg.RoiSouthEdit.setText( "%12.7f" % [ f["roiXY"][1] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
+    #        self.dlg.RoiEastEdit.displayText
+    #        # North ymax, roiXY[3]
+    #        self.dlg.RoiNorthEdit.setText( "%12.7f" % [ f["roiXY"][3] for f in self.roiDefinitions if (f["name"]==self.selectedRoi) ][0]  )
+    #        self.dlg.RoiEastEdit.displayText
+    #
+    #    return True
     # _____________________
     # add a filename to the list of opened files
     # anf move the index to the last opened file
@@ -613,7 +613,7 @@ class RCMRD_LandDegr:
         self.dictReproj = {}
     
         # clear files selectors
-        self.dlg.comboChooseArea.clear()
+        #self.dlg.comboChooseArea.clear()
         self.dlg.comboVegetationIndex.clear()
         self.dlg.comboPopDensity.clear()
         self.dlg.comboRainfallErosivity.clear()
@@ -629,12 +629,12 @@ class RCMRD_LandDegr:
         self.dlg.tabWidget.setCurrentWidget(self.dlg.tabHelp)
         
         # setup "settings" tools. ROI are defined with xMin, yMin, xMax, yMax
-        self.dlg.comboChooseArea.addItems( [ ii["name"] for ii in self.roiDefinitions ] )
-        for ii in self.roiDefinitions:
-            self.dlg.logTextDump.append( ii["name"] )
-        self.dlg.comboChooseArea.currentIndexChanged.connect(self.displayRoiValues)
-        self.dlg.comboChooseArea.setCurrentIndex(-1)
-        self.displayRoiValues()
+        #self.dlg.comboChooseArea.addItems( [ ii["name"] for ii in self.roiDefinitions ] )
+        #for ii in self.roiDefinitions:
+        #    self.dlg.logTextDump.append( ii["name"] )
+        #self.dlg.comboChooseArea.currentIndexChanged.connect(self.displayRoiValues)
+        #self.dlg.comboChooseArea.setCurrentIndex(-1)
+        #self.displayRoiValues()
 
         # connect the file chooser function to the buttons
         self.dlg.buttonVegetationIndex.clicked.connect(lambda: self.openFile('VGT'))
