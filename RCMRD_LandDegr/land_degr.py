@@ -78,7 +78,8 @@ class RCMRD_LandDegr:
             {"name":"Somali Land", "roiXY":[42.647246541,7.996515605, 48.93911199991,11.498928127]},
             {"name":"Somalia", "roiXY":[40.965385376,-1.69628316498, 51.417037811,11.989118646]},
             {"name":"Uganda", "roiXY":[29.548459513,-1.475205994, 35.006472615,4.219691875]}]
-        self.selectedRoi = None
+        
+        #self.selectedRoi = None
         self.raster_list = [] # list all files open in QGis, contains file objects
         self.dictReproj = None # dictionary: 'input filename' -> reprojected filename
         self.clipLayer = None # store the clipping vector layer
@@ -463,11 +464,12 @@ class RCMRD_LandDegr:
         return True
     # ____________________    
     def doCheckToGo(self):
-        if (self.selectedRoi) is None:
-            self.logMsg("Please choose a region, in the 'Settings' tab.")
-            self.dlg.logTextDump.append("Please choose a region, in the 'Settings' tab.")
-            self.dlg.tabWidget.setCurrentWidget(tabLog)
-            return False
+        
+        #if (self.selectedRoi) is None:
+        #    self.logMsg("Please choose a region, in the 'Settings' tab.")
+        #    self.dlg.logTextDump.append("Please choose a region, in the 'Settings' tab.")
+        #    self.dlg.tabWidget.setCurrentWidget(tabLog)
+        #    return False
             
         # check all files are different
         listFName=[ii.source() for ii in self.raster_list]
