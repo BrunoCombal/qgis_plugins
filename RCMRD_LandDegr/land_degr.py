@@ -81,6 +81,7 @@ class RCMRD_LandDegr:
         self.selectedRoi = None
         self.raster_list = [] # list all files open in QGis, contains file objects
         self.dictReproj = None # dictionary: 'input filename' -> reprojected filename
+        self.clipLayer = None # store the clipping vector layer
 
         self.listIDInputs={} # dictionary: key -> layer name. See keys definition in the code ('VGT', 'RFE', ...)
         self.listIDWeightsPotential={}
@@ -310,9 +311,12 @@ class RCMRD_LandDegr:
         inTrans = inFID.GetGeoTransform()
         inDataType = inFID.GetRasterBand(1).DataType
         # for now, we only resample 1 dataset, to be placed in a loop later on
-        thisTE = self.getTE()
         TR = self.dlg.spinTR_deg.value()
-        extraParam = "-te {} {} {} {}".format(thisTE[0], thisTE[1], thisTE[2], thisTE[3])
+        extraParam=''
+        if self.clipLayer is not None:
+            ext = self.clipLayer.extent()
+            bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
+            extraParam = "-te {} {} {} {} -cutline {}".format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text() )
         method = 0 # because we resample thematic layers
         # rtype 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
              
@@ -369,9 +373,15 @@ class RCMRD_LandDegr:
     
         # open reprojected files
         fid={}
+        noData={}
         for id, layerName in self.listIDInputs.iteritems():
             thisFile = self.dictReproj[ self.retrieveFromName( self.listIDInputs[id] )]
             fid[id] = gdal.Open(thisFile, GA_ReadOnly)
+            if fid[id] is None:
+                self.logMsg('Error: could not open file {}'.format(thisFile), QgsMessageLog.CRITICAL)
+                return False
+            noData[id]=fid[id].GetRasterBand(1).GetNoDataValue()
+            self.logMsg("dataset {}, no data is {}".format(id, noData[id]))
         
         # create ouputs from info read in VGT
         # this implies that all files were reprojected to the same footprint and resolution
@@ -406,12 +416,19 @@ class RCMRD_LandDegr:
             # let's compute actual LDIM
             dataActual=numpy.zeros(ns)
             for ii, ww in self.listIDWeightsActual.iteritems():
-                dataActual += ww * data[ii]
-                
+                wdata = data[ii] != noData[ii]
+                if wdata.any():
+                    dataActual[wdata] += ww * data[ii][wdata]
+                else:
+                    dataActual += ww * data[ii]
                 
             dataPotential = numpy.zeros(ns)
             for ii, ww in self.listIDWeightsPotential.iteritems():
-                dataPotential += ww * data[ii]
+                wdata = data[ii] != noData[ii]
+                if wdata.any():
+                    dataPotential[wdata] += ww * data[ii][wdata]
+                else:
+                    dataPotential += ww * data[ii]
                 
             # save lines
             outFID['Actual'].GetRasterBand(1).WriteArray( dataActual.reshape(1,ns), 0, il)
@@ -437,12 +454,12 @@ class RCMRD_LandDegr:
             if self.doResample(thisFName, output) == False:
                 self.logMsg("Reprojection failure for {}".format(thisFName))
                 return False
-                
+
         # now compute indices
         if self.doIndices() == False:
             self.logMsg("Error in processing indices")
             return False
-        
+
         return True
     # ____________________    
     def doCheckToGo(self):
@@ -477,14 +494,6 @@ class RCMRD_LandDegr:
             
         return True
     # _____________________
-    def getShpBB(self):
-
-        layer = QgsVectorLayer( self.dlg.editSHPName.text(), "Mask", 'ogr')
-        if not layer.isValid():
-            self.logMsg("Layer failed to load!")
-        # open shp
-        feature.geometry().boundingBox().toString()
-    # _____________________
     def displayRoiValues(self):
         if self.dlg.comboChooseArea.currentIndex() is None:
             return
@@ -515,33 +524,48 @@ class RCMRD_LandDegr:
     # add a filename to the list of opened files
     # anf move the index to the last opened file
     def openFile(self, name):
-               
+        text={'SHPCLIP':'clipping vector file','VGT':'Vegetation', 'RFE':'Rainfall erosivity', 'PopDens': 'Population density', 'SoilErod':'Soil Erodibility','SlopeLF':'Slope length'}
+        ltype={'SHPCLIP':'vector','VGT':'raster', 'RFE':'raster', 'PopDens': 'raster', 'SoilErod':'raster','SlopeLF':'raster'}
         fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open raster file"))
-        if fname:
-            rlayer = QgsRasterLayer(fname, name)
-            if not rlayer.isValid():
+        if fname=='':
+            return True
+ 
+        if ltype[name]=='raster':
+            layer = QgsRasterLayer(fname, name)
+            if not layer.isValid():
                 self.logMsg("Could not open this file")
                 self.dlg.logTextDump.append( "Could not open file {}".format(name) )
                 self.dlg.tabWidget.setCurrentWidget(tabLog)
                 return False
-            self.raster_list.append(rlayer)
-            # now put it in the correct list and make it the current selection
-            if name=='VGT':
-                self.dlg.comboVegetationIndex.addItem(name)
-                self.dlg.comboVegetationIndex.setCurrentIndex( self.dlg.comboVegetationIndex.count()-1 )
-            elif name=='RFE':
-                self.dlg.comboRainfallErosivity.addItem(fname)
-                self.dlg.comboRainfallErosivity.setCurrentIndex( self.dlg.comboRainfallErosivity.count()-1 )
-            elif name=='PopDens':
-                self.dlg.comboPopDensity.addItem(fname)
-                self.dlg.comboPopDensity.setCurrentIndex( self.dlg.comboPopDensity.count()-1 )
-            elif name=='SoilErod':
-                self.dlg.comboSoilErodibility.addItem(fname)
-                self.dlg.comboSoilErodibility.setCurrentIndex( self.dlg.comboSoilErodibility.count()-1 )
-            elif name=='SlopeLF':
-                self.dlg.comboSlopeLF.addItem( fname)
-                self.dlg.comboSlopeLF.setCurrentIndex( self.dlg.comboSlopeLF.count()-1 )
-                
+            self.raster_list.append(layer)
+            
+        if ltype[name]=='vector':
+            layer = QgsVectorLayer( fname, "Clip", 'ogr')
+            if not layer.isValid():
+                    self.logMsg( "Could not load vector layer {} with {}".format(layer.name(), fname), QgsMessageLog.WARNING)
+                    self.dlg.logTextDump.append( "Could not load vector layer {}".format(fname) )
+                    self.dlg.setCurrentWidget(self.logTextDump)
+                    return False
+            self.clipLayer = layer
+            
+        # now put it in the correct list and make it the current selection
+        if name=='VGT':
+            self.dlg.comboVegetationIndex.addItem(name)
+            self.dlg.comboVegetationIndex.setCurrentIndex( self.dlg.comboVegetationIndex.count()-1 )
+        elif name=='RFE':
+            self.dlg.comboRainfallErosivity.addItem(fname)
+            self.dlg.comboRainfallErosivity.setCurrentIndex( self.dlg.comboRainfallErosivity.count()-1 )
+        elif name=='PopDens':
+            self.dlg.comboPopDensity.addItem(fname)
+            self.dlg.comboPopDensity.setCurrentIndex( self.dlg.comboPopDensity.count()-1 )
+        elif name=='SoilErod':
+            self.dlg.comboSoilErodibility.addItem(fname)
+            self.dlg.comboSoilErodibility.setCurrentIndex( self.dlg.comboSoilErodibility.count()-1 )
+        elif name=='SlopeLF':
+            self.dlg.comboSlopeLF.addItem( fname)
+            self.dlg.comboSlopeLF.setCurrentIndex( self.dlg.comboSlopeLF.count()-1 )
+        elif name=='SHPCLIP':
+            self.dlg.editClipShp.setText( fname )
         return True
     # ____________________
     def saveFile(self, selector):
@@ -571,6 +595,14 @@ class RCMRD_LandDegr:
         if dname:
             if selector=='WrkDir':
                 self.dlg.editWrkDir.setText(dname)
+    # ___________________
+    def doClipShpWidgetsUpdate(self):
+        if self.dlg.checkClipShp.isChecked():
+            self.dlg.editClipShp.setEnabled(True)
+            self.dlg.buttonClipShp.setEnabled(True)
+        else:
+            self.dlg.editClipShp.setEnabled(False)
+            self.dlg.buttonClipShp.setEnabled(False)
     # ____________________
     def doInitGUI(self):
     
@@ -585,7 +617,7 @@ class RCMRD_LandDegr:
         self.dlg.comboRainfallErosivity.clear()
         self.dlg.comboSlopeLF.clear()
         self.dlg.comboSoilErodibility.clear()
-        self.dlg.logTextDump.clear()
+        # do not clear messages tab: so we can read messages from the former run
 
         # if wrkDir not set, then initialise, else leave it as it is
         if self.dlg.editWrkDir.text()=='':
@@ -621,6 +653,9 @@ class RCMRD_LandDegr:
         self.dlg.spinTR_m.valueChanged.connect(self.TR_mEdited)
         self.dlg.spinTR_deg.valueChanged.connect(self.TR_degEdited)
 
+        # signals for clipShp widgets
+        self.dlg.checkClipShp.stateChanged.connect( self.doClipShpWidgetsUpdate )
+        self.dlg.buttonClipShp.clicked.connect( (lambda: self.openFile('SHPCLIP') ) )
     # ____________________
     def run(self):
         """Set up the interface content and call business-logic functions"""
