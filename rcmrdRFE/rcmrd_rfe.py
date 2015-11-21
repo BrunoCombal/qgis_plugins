@@ -83,6 +83,8 @@ class rcmrdRFE:
         #self.dateEnd={'day':1,'month':10,'year':2015}
         
         self.clipLayer = None # the layer loaded in memory
+        # a global storing temp files names, before clipping
+        self.intermediateFiles={'RFE':'', 'RFD':'', 'RFI':''} # empty means no file is selected
         
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -316,6 +318,8 @@ class rcmrdRFE:
         return list_files
     # ___________________
     def doCompute(self):
+    
+        self.logMsg("--- Processing is starting ---")
         # build list of filenames
         intensityThreshold = self.dlg.intensityThreshold.value()
         WRD = self.dlg.valueWRD.value()
@@ -348,9 +352,12 @@ class rcmrdRFE:
         outType=GDT_Float32
         outDrv = gdal.GetDriverByName(format)
 
-        outFileRFE = self.dlg.editRFE.text()
-        outFileRFD = self.dlg.editRFD.text()
-        outFileRFI = self.dlg.editRFI.text()
+        outFileRFE = self.doTmpName( self.dlg.editRFE.text() )
+        self.intermediateFiles['RFE'] = outFileRFE
+        outFileRFD = self.doTmpName( self.dlg.editRFD.text() )
+        self.intermediateFiles['RFD'] = outFileRFD
+        outFileRFI = self.doTmpName( self.dlg.editRFI.text() )
+        self.intermediateFiles['RFI'] = outFileRFI
         outDs = outDrv.Create( outFileRFE, ns, nl, 1, outType, options  )
         outDsRFD = outDrv.Create( outFileRFD, ns, nl, 1, outType, options)
         outDsRFI = outDrv.Create( outFileRFI, ns, nl, 1, outType, options)
@@ -402,13 +409,17 @@ class rcmrdRFE:
     def doTmpName(self, fname):
         return '{}_{}.tif'.format(fname, random.randint(0,10000))
     # ___________________
+    # input: self.intermediateFiles
+    # output: filenames as defined in the interface
     def doClip(self):
-        inFiles= [ self.dlg.editRFE.text(), self.dlg.editRFD.text(), self.dlg.editRFI.text() ]
-        inFname= []
-        inCRS  = []
+        inFiles  = [ self.intermediateFiles['RFE'], self.intermediateFiles['RFD'], self.intermediateFiles['RFI'] ]
+        outFiles = [ self.dlg.editRFE.text(), self.dlg.editRFD.text(), self.dlg.editRFI.text() ]
+        inFname  = []
+        inCRS    = []
+        outFname = []
 
         # first create the list of files that need to be opened (depends on user choice)
-        for ii in inFiles:
+        for ii, oo in zip(inFiles, outFiles):
             thisFid = gdal.Open(ii, GA_ReadOnly)
             if thisFid is None:
                 self.dlg.logMsg("Could not open file {}".format(ii))
@@ -417,13 +428,12 @@ class rcmrdRFE:
             inFname.append(ii)
             inCRS.append(thisCRS)
             thisFid = None # close file, as we'll need to delete it later on
+            outFname.append(oo)
     
-        for thisName, thisCRS in zip(inFname, inCRS):
+        for thisName, thisCRS, thisOut in zip(inFname, inCRS, outFname):
             ext = self.clipLayer.extent()
             bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
             extraParam = '-te {} {} {} {} -cutline {}'.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
-            output = self.doTmpName(thisName)
-            self.logMsg("input is {}; output is {}".format(thisName, output))
             self.logMsg("extraParam {}".format(extraParam))
             testproc = processing.runalg('gdalogr:warpreproject',
                           thisName, # input
@@ -441,12 +451,12 @@ class rcmrdRFE:
                           None, # bigtiff
                           None, # TFW
                           extraParam, # extra 
-                          output)
+                          thisOut)
             if not testproc:
                 self.logMsg("Reprojection failed for file {inFileName}")
                 return False
      
-        return thisName, output
+        return True
     # ___________________
     def doClipShpWidgetsUpdate(self):
         if self.dlg.checkClipShp.isChecked():
@@ -498,6 +508,23 @@ class rcmrdRFE:
             return False
         if self.dlg.editRFE.text() == '':
             self.logMsg('Please define an output file name for Rainfall Erosivity, in "Output files" tab.', QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+            
+        # check output files are all different
+        if self.dlg.editRFD.text() == self.dlg.editRFI.text():
+            self.logMsg("Error: RFD and RFI files are identical. Please revise 'Output files' tab.")
+            self.iface.messageBar().pushMessage("Error: RFD and RFI files are identical. Please revise 'Output files' tab.")
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if self.dlg.editRFD.text() == self.dlg.editRFE.text():
+            self.logMsg("Error: RFD and RFE files are identical. Please revise 'Output files' tab.")
+            self.iface.messageBar().pushMessage("Error: RFD and RFE files are identical. Please revise 'Output files' tab.")
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if self.dlg.editRFI.text() == self.dlg.editRFE.text():
+            self.logMsg("Error: RFI and RFE files are identical. Please revise 'Output files' tab.")
+            self.iface.messageBar().pushMessage("Error: RFI and RFE files are identical. Please revise 'Output files' tab.")
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
             
@@ -602,15 +629,15 @@ class rcmrdRFE:
             if not computeOK:
                 self.logMsg("Error in processing. Exit.")
                 return False
-            computeOK = self.doClassify( self.dlg.editRFE.text() )
-            clipResult = self.doClip()
-            if clipResult == False:
-                self.logMsg("Problem when clipping results")
+            computeOK = self.doClassify( self.intermediateFiles['RFE'] )
+            if not computeOK:
+                self.logMsg('Could not classify Erosivity image. All process stopped.', QgsMessageLog.CRITICAL)
+                return False
             else:
-                self.doReplaceFiles(clipResult)
-            if computeOK: # load layers
-                self.iface.addRasterLayer(self.dlg.editRFE.text(), 'Rainfall erosivity')
-                self.iface.addRasterLayer(self.dlg.editRFI.text(), 'Rainfall intensity')
-                self.iface.addRasterLayer(self.dlg.editRFD.text(), 'Rainfall depth')
-            else:
-                self.logMsg('Could not classify Erosivity image')
+                computeOK = self.doClip()
+                if not computeOK:
+                    self.logMsg("Problem when clipping results")
+                else:
+                    self.iface.addRasterLayer(self.dlg.editRFE.text(), 'Rainfall erosivity')
+                    self.iface.addRasterLayer(self.dlg.editRFI.text(), 'Rainfall intensity')
+                    self.iface.addRasterLayer(self.dlg.editRFD.text(), 'Rainfall depth')
