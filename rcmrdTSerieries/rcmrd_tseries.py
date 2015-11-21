@@ -77,6 +77,9 @@ class rcmrdTSerieries:
         self.toolbar.setObjectName(u'rcmrdTSerieries')
         self.clipLayer = None # the layer loaded in memory
 
+        # a global storing temp files names
+        self.intermediateFiles={'AVG':'', 'MIN':'', 'MAX':''} # keys are AVG, MIN, MAX: empty means no file is selected
+        
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -248,7 +251,7 @@ class rcmrdTSerieries:
         return '{}{:02}{:02}'.format(thisYear, thisMonth, thisDay)
     # ___________________
     def doOpenDir(self, dirSelector):
-        dirName = QFileDialog.getExistingDirectory(self.dlg, self.tr('Choose directory'), os.path.expanduser("~"))
+        dirName = QFileDialog.getExistingDirectory(self.dlg, self.tr('Choose directory'), os.path.expanduser("~") )
         if dirName:
             if dirSelector=='inDir':
                 self.dlg.editInDir.setText(dirName)
@@ -288,8 +291,6 @@ class rcmrdTSerieries:
     # ___________________
     def doInitGui(self):
         #self.dlg.editInDir.clear()
-        if self.dlg.editInDir.text()=='':
-            self.dlg.editInDir.setText( os.path.expanduser("~") )
         self.dlg.buttonInDir.clicked.connect( (lambda: self.doOpenDir('inDir')) )
         
         self.dlg.editPrefix.clear()
@@ -392,25 +393,31 @@ class rcmrdTSerieries:
         return '{}_{}.tif'.format(fname, random.randint(0,10000))
     # ___________________
     # clip (gdalwarp) the preceding result, then replace it
+    # input: get the result of doCompute: output file names are stored in self.intermediateFiles
+    # output: read from the interface
     def doClip(self):
-        inFiles= [ self.dlg.editOutAverage.text(), self.dlg.editOutMinimum.text(), self.dlg.editOutMaximum.text() ]
+        
+        inFiles = [ self.intermediateFiles['AVG'], self.intermediateFiles['MIN'], self.intermediateFiles['MAX'] ]
         inCheck= [ self.dlg.checkAverage.isChecked(), self.dlg.checkMinimum.isChecked(), self.dlg.checkMaximum.isChecked() ]
+        outFiles= [ self.dlg.editOutAverage.text(), self.dlg.editOutMinimum.text(), self.dlg.editOutMaximum.text() ]
         inFname= []
         inCRS  = []
+        outFname=[]
 
         # first create the list of files that need to be opened (depends on user choice)
-        for ii, cc in zip(inFiles, inCheck):
+        for ii, cc, oo in zip(inFiles, inCheck, outFiles):
             if cc == True: # skip filenames which are not set
                 thisFid = gdal.Open(ii, GA_ReadOnly)
                 if thisFid is None:
-                    self.dlg.logMsg("Could not open file {}".format(ii))
+                    self.logMsg("Could not open file {}".format(ii))
                     return False
                 thisCRS = thisFid.GetProjection()
                 inFname.append(ii)
                 inCRS.append(thisCRS)
                 thisFid=None # close file, as we'll need to delete it later on
+                outFname.append(oo)
     
-        for thisName, thisCRS in zip(inFname, inCRS):
+        for thisName, thisCRS, thisOutput in zip(inFname, inCRS, outFname):
             ext = self.clipLayer.extent()
             bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
             # processing.runalg("gdalogr:warpreproject")
@@ -432,9 +439,7 @@ class rcmrdTSerieries:
             #EXTRA <ParameterString>
             #OUTPUT <OutputRaster>
             extraParam = '-te {} {} {} {} -cutline {}'.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
-            output = self.doTmpName(thisName)
-            self.logMsg("input is {}; utput is {}".format(thisName, output))
-            self.logMsg("extraParam {}".format(extraParam))
+            self.logMsg("Clipping: extraParam {}".format(extraParam))
             #METHOD(Resampling method):	0 - near, 1 - bilinear, 2 - cubic, 3 - cubicspline, 4 - lanczos
             #RTYPE(Output raster type): 0 - Byte, 1 - Int16, 2 - UInt16, 3 - UInt32, 4 - Int32, 5 - Float32, 6 - Float64
             #COMPRESS(GeoTIFF options. Compression type): 	0 - NONE, 1 - JPEG, 2 - LZW, 3 - PACKBITS, 4 - DEFLATE
@@ -455,16 +460,18 @@ class rcmrdTSerieries:
                           None, # bigtiff
                           None, # TFW
                           extraParam, # extra 
-                          output)
+                          thisOutput)
             if not testproc:
                 self.logMsg("Reprojection failed for file {inFileName}")
                 return False
      
-        return thisName, output
+        return True
     # ___________________
+    # input: list_files
+    # output: self.TmpFiles[]
     def doCompute(self):
 
-        self.logMsg("--- Starting processing ---")
+        self.logMsg("--- Processing starting ---")
     
         classes=[[0.68, 0.98],[0.50, 0.68],[0.30, 0.50],[0.15, 0.30],[-0.10, 0.15]]
         if self.dlg.checkValReal.isChecked():
@@ -504,7 +511,8 @@ class rcmrdTSerieries:
         
         # let's instantiate the output(s)
         if self.dlg.checkAverage.checkState():
-            outFileAVG = self.dlg.editOutAverage.text()
+            outFileAVG = self.doTmpName( self.dlg.editOutAverage.text() )
+            self.intermediateFiles['AVG'] = outFileAVG
             if self.dlg.checkClassifyAverage.checkState():
                 outType=GDT_Byte
             else:
@@ -515,7 +523,8 @@ class rcmrdTSerieries:
             avgDS.SetGeoTransform(thisTrans)
        
         if self.dlg.checkMinimum.checkState():
-            outFileMIN = self.dlg.editOutMinimum.text()
+            outFileMIN = self.doTmpName( self.dlg.editOutMinimum.text() )
+            self.intermediateFiles['MIN'] = outFileMIN
             if self.dlg.checkClassifyMinimum.checkState():
                 outType=GDT_Byte
             else:
@@ -527,6 +536,7 @@ class rcmrdTSerieries:
         
         if self.dlg.checkMaximum.checkState():
             outFileMAX = self.dlg.editOutMaximum.text()
+            self.intermediateFiles['MAX'] = outFileMAX
             if self.dlg.checkClassifyMaximum.checkState():
                 outType=GDT_Byte
             else:
@@ -575,6 +585,7 @@ class rcmrdTSerieries:
         # close files
         for ii in listFID:
             ii = None
+        listFID = None
         if self.dlg.checkAverage.checkState():
             avgDS = None
         if self.dlg.checkMinimum.checkState():
@@ -602,16 +613,8 @@ class rcmrdTSerieries:
             computeOK=False
             computeOK = self.doCompute()
             if computeOK and self.dlg.checkClipShp.isChecked():
-                returnClip = self.doClip()
-            if returnClip==False:
-                self.logMsg("Error in processing. Exit.")
-            else:
-                # replace original with clipped file
-                try:
-                    os.remove( returnClip[0] )
-                    os.rename( returnClip[1], returnClip[0] )
-                except OSError:
-                    self.logMsg("Could not replace temporary file {} with its clipped version {}".format(returnClip[0], returnClip[1]))
-                    return False
-                
+                computeOK = self.doClip()
+            if computeOK:
                 self.iface.addRasterLayer(self.dlg.editOutAverage.text(), 'Average')
+            else:
+                self.logMsg("Error in processing. Exit.")
