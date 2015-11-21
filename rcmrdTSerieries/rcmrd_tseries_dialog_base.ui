@@ -63,7 +63,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>1</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="tabInfiles">
     <attribute name="title">
@@ -543,17 +543,11 @@
        </widget>
       </item>
       <item row="15" column="2">
-       <spacer name="verticalSpacer_3">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
+       <widget class="QLineEdit" name="editClassifiedMax">
+        <property name="enabled">
+         <bool>false</bool>
         </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
+       </widget>
       </item>
      </layout>
     </widget>
@@ -605,6 +599,7 @@
   <tabstop>editOutMaximum</tabstop>
   <tabstop>buttonOutMaximum</tabstop>
   <tabstop>checkClassifyMaximum_2</tabstop>
+  <tabstop>editClassifiedMax</tabstop>
   <tabstop>tabs</tabstop>
   <tabstop>logTextDump</tabstop>
  </tabstops>
