@@ -61,10 +61,10 @@ class RCMRD_LandDegr:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Land Degradation (RCMRD)')
+        self.menu = self.tr(u'&RCRMD: land degradation')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'RCMRD_LandDegr')
-        self.toolbar.setObjectName(u'RCMRD_LandDegr')
+        self.toolbar = self.iface.addToolBar(u'RCMRD: land degradation')
+        self.toolbar.setObjectName(u'RCMRD: land degradation')
 
         # Declare user instance variables
         self.roiDefinitions = None

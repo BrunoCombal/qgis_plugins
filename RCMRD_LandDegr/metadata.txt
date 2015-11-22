@@ -10,14 +10,14 @@
 name=Land Degradation (RCMRD)
 qgisMinimumVersion=2.0
 description=Compute dand degradation indices
-version=0.1
+version=0.2
 author=Bruno Combal, MESA
 email=bruno.combal@gmail.com
 
 about=Compute Land Degradation Indices, as defined by RCMRD.
 
-tracker=https://github.com/BrunoCombal/
-repository=https://github.com/BrunoCombal/ldr_rcmrd
+tracker=https://github.com/BrunoCombal/qgis_plugins/issues
+repository=https://github.com/BrunoCombal/qgis_plugins
 # End of mandatory metadata
 
 # Recommended items:
@@ -28,7 +28,7 @@ repository=https://github.com/BrunoCombal/ldr_rcmrd
 # Tags are comma separated with spaces allowed
 tags=land degradation, vegetation, soil, erosivity, population, DEM
 
-homepage=https://github.com/BrunoCombal/ldr_rcmrd
+homepage=https://github.com/BrunoCombal/qgis_plugins
 category=Plugins
 icon=icon.png
 # experimental flag
