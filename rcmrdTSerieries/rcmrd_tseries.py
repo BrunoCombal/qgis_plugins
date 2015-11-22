@@ -71,10 +71,10 @@ class rcmrdTSerieries:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&RCMRD Time Series')
+        self.menu = self.tr(u'&RCMRD: Time Series')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'rcmrdTSerieries')
-        self.toolbar.setObjectName(u'rcmrdTSerieries')
+        self.toolbar = self.iface.addToolBar(u'RCMRD: Time Series')
+        self.toolbar.setObjectName(u'RCMRD: Time Series')
         self.clipLayer = None # the layer loaded in memory
 
         # a global storing temp files names
