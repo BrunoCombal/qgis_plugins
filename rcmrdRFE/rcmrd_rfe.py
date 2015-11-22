@@ -72,10 +72,10 @@ class rcmrdRFE:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&RCMRD Rainfall Erosivity')
+        self.menu = self.tr(u'&RCMRD: rainfall erosivity')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'rcmrdRFE')
-        self.toolbar.setObjectName(u'rcmrdRFE')
+        self.toolbar = self.iface.addToolBar(u'RCMRD: RFE')
+        self.toolbar.setObjectName(u'RCMRD: RFE')
 
         # default values
         #self.inDir='/Users/bruno/Desktop/mesa_data/input/Rainfall'
