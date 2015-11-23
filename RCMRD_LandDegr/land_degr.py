@@ -583,7 +583,7 @@ class RCMRD_LandDegr:
         return True
     # ___________________
     def TR_degEdited(self):
-        # spot VGT has pixel centered coordinates and consideres 112 pixels per degrees
+        # spot VGT has pixel centered coordinates and considers 112 pixels per degrees
         # for pixel corners coordinates, one considers 111 pixels per degrees
         # convert into meters
         self.dlg.spinTR_m.setValue( self.dlg.spinTR_deg.value()* 111.0 * 1000.0 )
@@ -652,6 +652,8 @@ class RCMRD_LandDegr:
         self.dlg.buttonWrkDir.clicked.connect(lambda: self.saveDir('WrkDir'))
         
         # pixel resolution control
+        self.dlg.spinTR_m.setValue(100.0)
+        self.dlg.spinTR_deg.setValue(100.0 / (1000.0 * 111.0) ) 
         self.dlg.spinTR_m.valueChanged.connect(self.TR_mEdited)
         self.dlg.spinTR_deg.valueChanged.connect(self.TR_degEdited)
 
