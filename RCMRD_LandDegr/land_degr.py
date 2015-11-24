@@ -414,20 +414,23 @@ class RCMRD_LandDegr:
             for id in self.listIDInputs:
                 data[ id ] = numpy.ravel( fid[id].GetRasterBand(1).ReadAsArray(0,il, ns, 1) )
                 
+                
             # let's compute actual LDIM
             dataActual=numpy.zeros(ns)
             for ii, ww in self.listIDWeightsActual.iteritems():
-                wdata = data[ii] != noData[ii]
-                if wdata.any():
-                    dataActual[wdata] += ww * data[ii][wdata]
+                if noData[ii] is not None:
+                    wdata = ( data[ii] != noData[ii] )
+                    if wdata.any():
+                        dataActual[wdata] += ww * data[ii][wdata]
                 else:
                     dataActual += ww * data[ii]
                 
             dataPotential = numpy.zeros(ns)
             for ii, ww in self.listIDWeightsPotential.iteritems():
-                wdata = data[ii] != noData[ii]
-                if wdata.any():
-                    dataPotential[wdata] += ww * data[ii][wdata]
+                if noData[ii] is not None:
+                    wdata = data[ii] != noData[ii]
+                    if wdata.any():
+                        dataPotential[wdata] += ww * data[ii][wdata]
                 else:
                     dataPotential += ww * data[ii]
                 
@@ -468,14 +471,20 @@ class RCMRD_LandDegr:
         #if (self.selectedRoi) is None:
         #    self.logMsg("Please choose a region, in the 'Settings' tab.")
         #    self.dlg.logTextDump.append("Please choose a region, in the 'Settings' tab.")
-        #    self.dlg.tabWidget.setCurrentWidget(tabLog)
+        #    self.dlg.tabWidget.setCurrentWidget(self.dlg.logTextDump)
         #    return False
-            
+        
+        
+        # clipping vector is now mandatory
+        if self.dlg.editClipShp.text()=='':
+            self.logMsg("You must define a clipping vector (for example a shapefile)", QgsMessageLog.CRITICAL)
+            self.dlg.tabWidget.setCurrentWidget(self.dlg.logTextDump)
+        
         # check all files are different
         listFName=[ii.source() for ii in self.raster_list]
         if self.uniquify(listFName) != listFName:
             self.logMsg("Input files must be different. Please revise inputs in 'Input files' tab.", QgsMessageLog.CRITICAL)
-            self.iface.messageBar.pushMessage("CRITICAL","Error: Input files must be different. Please revise inputs in 'Input files' tab.")
+            tabWidget.setCurrentWidget(self.dlg.logTextDump)
 
         self.listIDInputs={'VGT':self.dlg.comboVegetationIndex.currentText(),
             'RFE':self.dlg.comboRainfallErosivity.currentText(),
@@ -537,7 +546,7 @@ class RCMRD_LandDegr:
             if not layer.isValid():
                 self.logMsg("Could not open this file")
                 self.dlg.logTextDump.append( "Could not open file {}".format(name) )
-                self.dlg.tabWidget.setCurrentWidget(tabLog)
+                self.dlg.tabWidget.setCurrentWidget(self.dlg.logTextDump)
                 return False
             self.raster_list.append(layer)
             
@@ -598,13 +607,13 @@ class RCMRD_LandDegr:
             if selector=='WrkDir':
                 self.dlg.editWrkDir.setText(dname)
     # ___________________
-    def doClipShpWidgetsUpdate(self):
-        if self.dlg.checkClipShp.isChecked():
-            self.dlg.editClipShp.setEnabled(True)
-            self.dlg.buttonClipShp.setEnabled(True)
-        else:
-            self.dlg.editClipShp.setEnabled(False)
-            self.dlg.buttonClipShp.setEnabled(False)
+#    def doClipShpWidgetsUpdate(self):
+#        if self.dlg.checkClipShp.isChecked():
+#            self.dlg.editClipShp.setEnabled(True)
+#            self.dlg.buttonClipShp.setEnabled(True)
+#        else:
+#            self.dlg.editClipShp.setEnabled(False)
+#            self.dlg.buttonClipShp.setEnabled(False)
     # ____________________
     def doInitGUI(self):
     
@@ -658,8 +667,9 @@ class RCMRD_LandDegr:
         self.dlg.spinTR_deg.valueChanged.connect(self.TR_degEdited)
 
         # signals for clipShp widgets
-        self.dlg.checkClipShp.stateChanged.connect( self.doClipShpWidgetsUpdate )
+        #self.dlg.checkClipShp.stateChanged.connect( self.doClipShpWidgetsUpdate )
         self.dlg.buttonClipShp.clicked.connect( (lambda: self.openFile('SHPCLIP') ) )
+        
     # ____________________
     def run(self):
         """Set up the interface content and call business-logic functions"""

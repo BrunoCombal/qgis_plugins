@@ -54,7 +54,7 @@
     <enum>QTabWidget::Rounded</enum>
    </property>
    <property name="currentIndex">
-    <number>3</number>
+    <number>0</number>
    </property>
    <property name="tabsClosable">
     <bool>false</bool>
@@ -195,24 +195,17 @@
        </property>
       </spacer>
      </item>
-     <item row="10" column="0">
-      <widget class="QCheckBox" name="checkClipShp">
-       <property name="text">
-        <string>Clip with vector</string>
-       </property>
-      </widget>
-     </item>
      <item row="10" column="1">
       <widget class="QLineEdit" name="editClipShp">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
       </widget>
      </item>
      <item row="10" column="2">
       <widget class="QPushButton" name="buttonClipShp">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="text">
         <string>...</string>
@@ -231,6 +224,13 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item row="10" column="0">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Clipping vector</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>
