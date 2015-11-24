@@ -57,7 +57,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="tabFiles">
     <attribute name="title">
@@ -118,19 +118,26 @@
      <string>Settings</string>
     </attribute>
     <layout class="QGridLayout" name="gridLayout_2">
-     <item row="0" column="1">
-      <widget class="QSpinBox" name="spinClasses">
-       <property name="maximumSize">
+     <item row="9" column="1">
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
         <size>
-         <width>100</width>
-         <height>16777215</height>
+         <width>40</width>
+         <height>20</height>
         </size>
        </property>
-       <property name="singleStep">
-        <number>2</number>
+      </spacer>
+     </item>
+     <item row="6" column="1">
+      <widget class="QRadioButton" name="radio12th">
+       <property name="text">
+        <string>1/12</string>
        </property>
-       <property name="value">
-        <number>5</number>
+       <property name="checked">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -147,13 +154,6 @@
        </property>
       </spacer>
      </item>
-     <item row="2" column="1">
-      <widget class="QRadioButton" name="radio4th">
-       <property name="text">
-        <string>1/4</string>
-       </property>
-      </widget>
-     </item>
      <item row="0" column="0">
       <widget class="QLabel" name="label_4">
        <property name="maximumSize">
@@ -164,6 +164,20 @@
        </property>
        <property name="text">
         <string>Number of classes</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QRadioButton" name="radio4th">
+       <property name="text">
+        <string>1/4</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QRadioButton" name="radio8th">
+       <property name="text">
+        <string>1/8</string>
        </property>
       </widget>
      </item>
@@ -180,17 +194,19 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="1">
-      <widget class="QRadioButton" name="radioAll">
-       <property name="text">
-        <string>All pixels</string>
+     <item row="0" column="1">
+      <widget class="QSpinBox" name="spinClasses">
+       <property name="maximumSize">
+        <size>
+         <width>100</width>
+         <height>16777215</height>
+        </size>
        </property>
-      </widget>
-     </item>
-     <item row="4" column="1">
-      <widget class="QRadioButton" name="radio8th">
-       <property name="text">
-        <string>1/8</string>
+       <property name="singleStep">
+        <number>2</number>
+       </property>
+       <property name="value">
+        <number>5</number>
        </property>
       </widget>
      </item>
@@ -201,6 +217,20 @@
        </property>
       </widget>
      </item>
+     <item row="1" column="1">
+      <widget class="QRadioButton" name="radioAll">
+       <property name="text">
+        <string>All pixels</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QRadioButton" name="radio16th">
+       <property name="text">
+        <string>1/16</string>
+       </property>
+      </widget>
+     </item>
      <item row="5" column="1">
       <widget class="QRadioButton" name="radio10th">
        <property name="text">
@@ -208,28 +238,12 @@
        </property>
       </widget>
      </item>
-     <item row="6" column="1">
-      <widget class="QRadioButton" name="radio12th">
+     <item row="8" column="1">
+      <widget class="QRadioButton" name="radio20th">
        <property name="text">
-        <string>1/12</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
+        <string>1/20</string>
        </property>
       </widget>
-     </item>
-     <item row="7" column="1">
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </widget>

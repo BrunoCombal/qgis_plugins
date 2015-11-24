@@ -28,6 +28,12 @@ import resources
 # Import the code for the dialog
 from rcmrd_natBreak_dialog import rcmrdNatBreaksDialog
 import os.path
+# gdal
+from osgeo import gdal
+from osgeo.gdalconst import *
+import numpy
+import string
+import os, os.path
 # for computing natural_breaks distribution
 from pysal.esda.mapclassify import Natural_Breaks
 
@@ -201,7 +207,7 @@ class rcmrdNatBreaks:
     def doSaveFile(self):
         saveFname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define an output file name for classification"), os.path.expanduser("~"))
         if saveFname:
-            self.dld.editOutFile.setText(saveFname)
+            self.dlg.editOutFile.setText(saveFname)
     # ____________
     def doCheckToGo(self):
         if self.dlg.editInFile.text()=='':
@@ -220,14 +226,39 @@ class rcmrdNatBreaks:
         self.dlg.buttonOutFile.clicked.connect( self.doSaveFile )
     # ____________
     def getSampling(self):
-        return 12
+        sampling = 12
+        if self.dlg.radioAll.isChecked():
+            sampling = 1
+        if self.dlg.radio4th.isChecked():
+            sampling = 4
+        if self.dlg.radio6th.isChecked():
+            sampling = 6
+        if self.dlg.radio8th.isChecked():
+            sampling = 8
+        if self.dlg.radio10th.isChecked():
+            sampling = 10
+        if self.dlg.radio12th.isChecked():
+            sampling = 12
+        if self.dlg.radio16th.isChecked():
+            sampling = 16
+        if self.dlg.radio20th.isChecked():
+            sampling = 20
+
+        self.logMsg("Sampling is 1/{} pixels".format(sampling), QgsMessageLog.INFO)
+        return sampling
     # ____________
     def doNatBreaks(self):
         # read the image: 1/NSkip lines, 1/NSkip column
-        fname = self.dlg.buttonInFile.text()
+        fname = self.dlg.editInFile.text()
         fid = gdal.Open(fname, GA_ReadOnly)
+        if fid is None:
+            self.logMsg("Could not open file {}".format(fname), QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget( self.dlg.tabMessages )
+            return False
         ns = fid.RasterXSize
         nl = fid.RasterYSize
+        projection = fid.GetProjection()
+        trans = fid.GetGeoTransform()
         data=[]
         NSkip = self.getSampling()
         
@@ -235,7 +266,7 @@ class rcmrdNatBreaks:
         for il in range(0, nl, NSkip):
             thisData = numpy.ravel( fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1) )
             data.append(thisData[range(0, ns, NSkip)])
-        fid = None
+        
         # compute natural breaks: the object must be unidimensional, and have a copy function
         self.logMsg("Classification: searching for natural_breaks")
         nBreaks = self.dlg.spinClasses.value()
@@ -254,8 +285,8 @@ class rcmrdNatBreaks:
         outName = self.dlg.editOutFile.text()
         outDrv = gdal.GetDriverByName('GTiff')
         outDs = outDrv.Create(outName, ns, nl, 1, GDT_Byte, ['compress=LZW'])
-        outDs.SetProjection(fid.GetProjection())
-        outDs.SetGeoTransform(fid.GetGeoTransform())
+        outDs.SetProjection( projection )
+        outDs.SetGeoTransform( trans )
         self.logMsg("Classification: saving data")
         for il in range(nl):
             data = numpy.ravel(fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1))
@@ -279,7 +310,7 @@ class rcmrdNatBreaks:
             result = self.dlg.exec_()
             if result:
                 if self.doCheckToGo():
-                    jobDone = doNatBreaks()
+                    jobDone = self.doNatBreaks()
             else:
                 jobDone = True
         # See if OK was pressed
