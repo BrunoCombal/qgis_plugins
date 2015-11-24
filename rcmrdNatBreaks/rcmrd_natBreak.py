@@ -20,14 +20,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFile, QFileInfo
+from PyQt4.QtGui import QAction, QIcon, QFileDialog
+from qgis.core import *
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
 from rcmrd_natBreak_dialog import rcmrdNatBreaksDialog
 import os.path
-
+# for computing natural_breaks distribution
+from pysal.esda.mapclassify import Natural_Breaks
 
 class rcmrdNatBreaks:
     """QGIS Plugin Implementation."""
@@ -177,14 +179,109 @@ class rcmrdNatBreaks:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
+       
+    # ____________
+    def logMsg(self, msg, errorLvl = QgsMessageLog.INFO):
+        QgsMessageLog.logMessage( msg, tag='RCMRD Land Degradation', level=errorLvl)
+        
+        prepend=''
+        if errorLvl==QgsMessageLog.WARNING:
+            self.iface.messageBar().pushMessage("WARNING", msg)
+            prepend="Warning! "
+        if errorLvl==QgsMessageLog.CRITICAL:
+            self.iface.messageBar().pushMessage("CRITICAL",msg)
+            prepend="Critical error! "
+        self.dlg.logTextDump.append(prepend + msg)
+    # ____________
+    def doOpenFile(self):
+        fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open input file") )
+        if fname:
+            self.dlg.editInFile.setText(fname)
+    # ____________
+    def doSaveFile(self):
+        saveFname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define an output file name for classification"), os.path.expanduser("~"))
+        if saveFname:
+            self.dld.editOutFile.setText(saveFname)
+    # ____________
+    def doCheckToGo(self):
+        if self.dlg.editInFile.text()=='':
+            self.logMsg("Missing an input file", QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget( self.dlg.tabMessages )
+            return False
+        if self.dlg.editOutFile.text()=='':
+            self.logMsg("Missing an output file", QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget( self.dlg.tabMessages )
+            return False
+        return True
+    # ____________
+    def doInitGUI(self):
+        # connect buttons
+        self.dlg.buttonInFile.clicked.connect( self.doOpenFile )
+        self.dlg.buttonOutFile.clicked.connect( self.doSaveFile )
+    # ____________
+    def getSampling(self):
+        return 12
+    # ____________
+    def doNatBreaks(self):
+        # read the image: 1/NSkip lines, 1/NSkip column
+        fname = self.dlg.buttonInFile.text()
+        fid = gdal.Open(fname, GA_ReadOnly)
+        ns = fid.RasterXSize
+        nl = fid.RasterYSize
+        data=[]
+        NSkip = self.getSampling()
+        
+        self.logMsg("Classification: reading input")
+        for il in range(0, nl, NSkip):
+            thisData = numpy.ravel( fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1) )
+            data.append(thisData[range(0, ns, NSkip)])
+        fid = None
+        # compute natural breaks: the object must be unidimensional, and have a copy function
+        self.logMsg("Classification: searching for natural_breaks")
+        nBreaks = self.dlg.spinClasses.value()
+        natBreaks = Natural_Breaks(numpy.ravel(data), k= nBreaks)
+        bins=[0]
+        bins.extend(natBreaks.bins)
+        len_bins = len(bins)
+        data = None
+        natBreaks = None
+        # write out results
+        self.logMsg("Natural breaks for {}".format(fname))
+        self.logMsg("Classification: recoding")
+        for ii in range(1,len_bins):
+            self.logMsg("Class {}: {}".format(ii, bins[ii]))
+        # instead of duplicating the image in memory, let's do now the work line by line: memory friendly
+        outName = self.dlg.editOutFile.text()
+        outDrv = gdal.GetDriverByName('GTiff')
+        outDs = outDrv.Create(outName, ns, nl, 1, GDT_Byte, ['compress=LZW'])
+        outDs.SetProjection(fid.GetProjection())
+        outDs.SetGeoTransform(fid.GetGeoTransform())
+        self.logMsg("Classification: saving data")
+        for il in range(nl):
+            data = numpy.ravel(fid.GetRasterBand(1).ReadAsArray(0, il, ns, 1))
+            recoded = numpy.zeros(ns)
+            icode=0
+            for iclass in range(1,len_bins):
+                icode+=1
+                wtr = (data > bins[iclass-1])*(data <= bins[iclass])
+                if wtr.any():
+                    recoded[wtr]=icode
+            outDs.GetRasterBand(1).WriteArray(recoded.reshape(1,ns), 0, il)
 
-
+    # ____________
     def run(self):
-        """Run method that performs all the real work"""
-        # show the dialog
+        
+        self.doInitGUI()
         self.dlg.show()
         # Run the dialog event loop
-        result = self.dlg.exec_()
+        jobDone = False
+        while not jobDone:
+            result = self.dlg.exec_()
+            if result:
+                if self.doCheckToGo():
+                    jobDone = doNatBreaks()
+            else:
+                jobDone = True
         # See if OK was pressed
         if result:
             # Do something useful here - delete the line containing pass and
