@@ -197,7 +197,7 @@ class rcmrdRFE:
    
     # ___________________
     def logMsg(self, msg, errorLvl=QgsMessageLog.INFO):
-        QgsMessageLog.logMessage(msg, tag='Rainfall Erosivity',level=errorLvl)
+        QgsMessageLog.logMessage(msg, tag='RCMRD Rainfall Erosivity',level=errorLvl)
         
         prepend=''
         if errorLvl==QgsMessageLog.WARNING:
@@ -567,7 +567,7 @@ class rcmrdRFE:
         for ii in range(1,len_bins):
             self.logMsg("Class {}: {}".format(ii, bins[ii]))
         # instead of duplicating the image in memory, let's do now the work line by line: memory friendly
-        tempName = '{}_naturalBreaks_{}.tif'.format(fname, random.randint(1,100000))
+        tempName = '{}_naturalBreaks_{}.tif'.format( fname, random.randint(1,100000) )
         fid = gdal.Open(fname, GA_ReadOnly)
         ns = fid.RasterXSize
         nl = fid.RasterYSize
@@ -634,10 +634,21 @@ class rcmrdRFE:
                 self.logMsg('Could not classify Erosivity image. All process stopped.', QgsMessageLog.CRITICAL)
                 return False
             else:
-                computeOK = self.doClip()
-                if not computeOK:
-                    self.logMsg("Problem when clipping results")
-                else:
+                if self.dlg.checkClipShp.isChecked():
+                    computeOK = self.doClip()
+                    if not computeOK:
+                        self.logMsg("Problem when clipping results")
+                        return False
+                else: # rename files
+                    inFiles  = [ self.intermediateFiles['RFE'], self.intermediateFiles['RFD'], self.intermediateFiles['RFI'] ]
+                    outFiles = [ self.dlg.editRFE.text(), self.dlg.editRFD.text(), self.dlg.editRFI.text() ]
+                    try:
+                        for iiIn, iiOut in zip(inFiles, outFiles):
+                            os.rename(iiIn, iiOut)
+                    except OSError:
+                        self.logMsg("Error when tying to create final file {}. Please use intermediate file {} instead".format(iiOut, iiIn), QgsMessageLog.CRITICAL)
+                        self.dlg.setCurrentWidget(self.dlg.tabMessages)
+                if computeOK:
                     self.iface.addRasterLayer(self.dlg.editRFE.text(), 'Rainfall erosivity')
                     self.iface.addRasterLayer(self.dlg.editRFI.text(), 'Rainfall intensity')
                     self.iface.addRasterLayer(self.dlg.editRFD.text(), 'Rainfall depth')
