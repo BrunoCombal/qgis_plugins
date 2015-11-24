@@ -192,7 +192,7 @@ class rcmrdTSerieries:
 
     # ___________________
     def logMsg(self, msg, errorLvl=QgsMessageLog.INFO):
-        QgsMessageLog.logMessage(msg, tag='Rainfall Erosivity',level=errorLvl)
+        QgsMessageLog.logMessage(msg, tag='RCMD Time Series',level=errorLvl)
         
         prepend=''
         if errorLvl==QgsMessageLog.WARNING:
@@ -393,7 +393,7 @@ class rcmrdTSerieries:
         return '{}_{}.tif'.format(fname, random.randint(0,10000))
     # ___________________
     # clip (gdalwarp) the preceding result, then replace it
-    # input: get the result of doCompute: output file names are stored in self.intermediateFiles
+    # input: get doCompute's result: output file names are stored in self.intermediateFiles
     # output: read from the interface
     def doClip(self):
         
@@ -546,7 +546,7 @@ class rcmrdTSerieries:
             minDS.SetProjection(thisProj)
             minDS.SetGeoTransform(thisTrans)
 
-        self.logMsg("Processing with converion factors: {} {}".format(DN2F[0], DN2F[1]))
+        self.logMsg("Processing with conversion factors: {} {}".format(DN2F[0], DN2F[1]))
         if self.dlg.checkAverage.checkState():
             self.logMsg("Average is computed")
         if self.dlg.checkMinimum.checkState():
@@ -612,8 +612,28 @@ class rcmrdTSerieries:
         if result:
             computeOK=False
             computeOK = self.doCompute()
-            if computeOK and self.dlg.checkClipShp.isChecked():
-                computeOK = self.doClip()
+            if computeOK:
+                if self.dlg.checkClipShp.isChecked():
+                    computeOK = self.doClip()
+                else: # rename files
+                    if self.dlg.checkAverage.checkState():
+                        try:
+                            os.rename(self.intermediateFiles['AVG'], self.dlg.editOutAverage.text())
+                        except OSError:
+                            self.logMsg("Could not rename the intermediate average. Please use file {}".format(self.intermediateFiles['AVG']) )
+     
+                    if self.dlg.checkMinimum.checkState():
+                        try:
+                            os.rename(self.intermediateFiles['MIN'], self.dlg.editOutAverage.text())
+                        except OSError:
+                            self.logMsg("Could not rename the intermediate minimum. Please use file {}".format(self.intermediateFiles['MIN']) )
+     
+                    if self.dlg.checkMaximum.checkState():
+                        try:
+                            os.rename(self.intermediateFiles['MAX'], self.dlg.editOutAverage.text())
+                        except OSError:
+                            self.logMsg("Could not rename the intermediate minimum. Please use file {}".format(self.intermediateFiles['MAX']) )
+     
             if computeOK:
                 self.iface.addRasterLayer(self.dlg.editOutAverage.text(), 'Average')
             else:
