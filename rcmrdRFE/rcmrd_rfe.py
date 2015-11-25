@@ -36,7 +36,7 @@ from rcmrd_rfe_dialog import rcmrdRFEDialog
 import os.path
 import random
 # for computing natural_breaks distribution
-from pysal.esda.mapclassify import Natural_Breaks
+#from pysal.esda.mapclassify import Natural_Breaks
 
 class rcmrdRFE:
     """QGIS Plugin Implementation."""
@@ -256,14 +256,16 @@ class rcmrdRFE:
         return '{}{:02}{:02}'.format(thisYear, thisMonth, thisDay)
     # ___________________
     def doOpenDir(self, dirSelector):
-        dirName = QFileDialog.getExistingDirectory(self.dlg, self.tr('Choose directory'), os.path.expanduser("~"))
+        dialog = QFileDialog()
+        dirName = dialog.getExistingDirectory(self.dlg, self.tr('Choose directory'), os.path.expanduser("~"))
         if dirName:
             if dirSelector=='inDir':
                 self.dlg.editInputDir.setText(dirName)
     # ___________________
     def doOpenFile(self, selector):
         text = {'clipShp': 'clipping shapefile'}
-        fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open {}".format(text[selector])) )
+        dialog = QFileDialog()
+        fname = dialog.getOpenFileName(self.dlg, self.tr("Open {}".format(text[selector])) )
         if fname:
             if selector=='clipShp':
                 # it must be a shapefile, let's open it
@@ -277,7 +279,8 @@ class rcmrdRFE:
     def doSaveFname(self, selector):
     
         text={'rfe':'Rainfall Erosivity', 'rfd':'Rainfall Depth', 'rfi':'Rainfall Intensity'}
-        saveFname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
+        dialog = QFileDialog()
+        saveFname = dialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
         if saveFname:
             if selector=='rfd':
                 self.dlg.editRFD.setText(saveFname)
@@ -328,7 +331,7 @@ class rcmrdRFE:
         list_files = self.doCreateFNameList()
         if not list_files:
             self.logMsg("Could not find files matching input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
-            self.iface.messageBar().pushMessage("CRITICAL", "Could not find files matcing input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
+            self.iface.messageBar().pushMessage("CRITICAL", "Could not find files matching input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
         if len(list_files)==0:
