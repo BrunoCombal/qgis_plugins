@@ -473,12 +473,12 @@ class RCMRD_LandDegr:
         #    self.dlg.logTextDump.append("Please choose a region, in the 'Settings' tab.")
         #    self.dlg.tabWidget.setCurrentWidget(self.dlg.logTextDump)
         #    return False
-        
-        
+        self.logMsg("Checking inputs")
         # clipping vector is now mandatory
         if self.dlg.editClipShp.text()=='':
             self.logMsg("You must define a clipping vector (for example a shapefile)", QgsMessageLog.CRITICAL)
             self.dlg.tabWidget.setCurrentWidget(self.dlg.logTextDump)
+            return False
         
         # check all files are different
         listFName=[ii.source() for ii in self.raster_list]
@@ -486,7 +486,7 @@ class RCMRD_LandDegr:
             self.logMsg("Input files must be different. Please revise inputs in 'Input files' tab.", QgsMessageLog.CRITICAL)
             tabWidget.setCurrentWidget(self.dlg.logTextDump)
 
-        self.listIDInputs={'VGT':self.dlg.comboVegetationIndex.currentText(),
+        self.listIDInputs={'VGT': self.dlg.comboVegetationIndex.currentText(),
             'RFE':self.dlg.comboRainfallErosivity.currentText(),
             'PopDens':self.dlg.comboPopDensity.currentText(),
             'SoilErod':self.dlg.comboSoilErodibility.currentText(),
@@ -497,7 +497,7 @@ class RCMRD_LandDegr:
             'SoilErod': self.dlg.spinPotSoilErod.value(),
             'SlopeLF': self.dlg.spinPotSlopeLF.value()}
             
-        self.listIDWeightsActual={'VGT':self.dlg.spinActVGT.value(),
+        self.listIDWeightsActual={'VGT': self.dlg.spinActVGT.value(),
             'RFE': self.dlg.spinActRFE.value(),
             'PopDens': self.dlg.spinActPopDens.value(),
             'SoilErod': self.dlg.spinActSoilErod.value(),
@@ -537,7 +537,8 @@ class RCMRD_LandDegr:
     def openFile(self, name):
         text={'SHPCLIP':'clipping vector file','VGT':'Vegetation', 'RFE':'Rainfall erosivity', 'PopDens': 'Population density', 'SoilErod':'Soil Erodibility','SlopeLF':'Slope length'}
         ltype={'SHPCLIP':'vector','VGT':'raster', 'RFE':'raster', 'PopDens': 'raster', 'SoilErod':'raster','SlopeLF':'raster'}
-        fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open raster file"))
+        dialog = QFileDialog()
+        fname = dialog.getOpenFileName(self.dlg, self.tr("Open raster file"))
         if fname=='':
             return True
  
@@ -581,7 +582,8 @@ class RCMRD_LandDegr:
     # ____________________
     def saveFile(self, selector):
         text={'PotLDIM':'Potential LDIM', 'ActLDIM':'Actual LDIM'}
-        fname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
+        dialog = QFileDialog()
+        fname = dialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
     
         if fname:
             if selector=='PotLDIM':
@@ -602,7 +604,8 @@ class RCMRD_LandDegr:
     #____________________
     def saveDir(self, selector):
         text={'WrkDir':'intermediate processing'}
-        dname = QFileDialog.getExistingDirectory(self.dlg, self.tr("Choose a directory to save {}".format(text[selector])), os.path.expanduser("~"))
+        dialog = QFileDialog()
+        dname = dialog.getExistingDirectory(self.dlg, self.tr("Choose a directory to save {}".format(text[selector])), os.path.expanduser("~"))
         if dname:
             if selector=='WrkDir':
                 self.dlg.editWrkDir.setText(dname)
@@ -709,7 +712,8 @@ class RCMRD_LandDegr:
         self.dlg.logTextDump.append("Waiting for settings")
         # Run the dialog event loop, and exit only if all check are ok
         checkToGo = False
-        while not checkToGo:
+        result = False
+        while not result and checkToGo:
             result = self.dlg.exec_()
             if result:
                 checkToGo = self.doCheckToGo()
