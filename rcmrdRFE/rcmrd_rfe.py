@@ -628,10 +628,10 @@ class rcmrdRFE:
             computeOK = self.doCompute()
             if not computeOK:
                 self.logMsg("Error in processing. Exit.")
-                return False
-            computeOK = self.doClassify( self.intermediateFiles['RFE'] )
-            if not computeOK:
-                self.logMsg('Could not classify Erosivity image. All process stopped.', QgsMessageLog.CRITICAL)
+            #    return False
+            #computeOK = self.doClassify( self.intermediateFiles['RFE'] )
+            #if not computeOK:
+            #    self.logMsg('Could not classify Erosivity image. All process stopped.', QgsMessageLog.CRITICAL)
                 return False
             else:
                 if self.dlg.checkClipShp.isChecked():
