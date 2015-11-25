@@ -188,7 +188,7 @@ class rcmrdNatBreaks:
        
     # ____________
     def logMsg(self, msg, errorLvl = QgsMessageLog.INFO):
-        QgsMessageLog.logMessage( msg, tag='RCMRD Land Degradation', level=errorLvl)
+        QgsMessageLog.logMessage( msg, tag='Natural Breaks', level=errorLvl)
         
         prepend=''
         if errorLvl==QgsMessageLog.WARNING:
@@ -200,11 +200,13 @@ class rcmrdNatBreaks:
         self.dlg.logTextDump.append(prepend + msg)
     # ____________
     def doOpenFile(self):
+        dialog = QFileDialog()
         fname = QFileDialog.getOpenFileName(self.dlg, self.tr("Open input file") )
         if fname:
             self.dlg.editInFile.setText(fname)
     # ____________
     def doSaveFile(self):
+        dialog = QFileDialog()
         saveFname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define an output file name for classification"), os.path.expanduser("~"))
         if saveFname:
             self.dlg.editOutFile.setText(saveFname)
@@ -259,7 +261,9 @@ class rcmrdNatBreaks:
         nl = fid.RasterYSize
         projection = fid.GetProjection()
         trans = fid.GetGeoTransform()
-        data=[]
+        noData=fid.GetRasterBand(1).GetNoDataValue()
+        self.logMsg("No data set to {}".format(noData))
+        data = []
         NSkip = self.getSampling()
         
         self.logMsg("Classification: reading input")
@@ -268,6 +272,16 @@ class rcmrdNatBreaks:
             data.append(thisData[range(0, ns, NSkip)])
         
         # compute natural breaks: the object must be unidimensional, and have a copy function
+        # is there any no data?
+        tmpData = numpy.ravel(data)
+        if noData is not None:
+            wdata = (tmpData != noData)
+            if wdata.any():
+                data = tmpData[wdata]
+                del tmpData
+        else:
+            data = tmpData
+            del tmpData
         self.logMsg("Classification: searching for natural_breaks")
         nBreaks = self.dlg.spinClasses.value()
         natBreaks = Natural_Breaks(numpy.ravel(data), k= nBreaks)
@@ -277,8 +291,8 @@ class rcmrdNatBreaks:
         data = None
         natBreaks = None
         # write out results
-        self.logMsg("Natural breaks for {}".format(fname))
-        self.logMsg("Classification: recoding")
+        self.logMsg( "Natural breaks for {}".format(fname) )
+        self.logMsg( "Classification: recoding" )
         for ii in range(1,len_bins):
             self.logMsg("Class {}: {}".format(ii, bins[ii]))
         # instead of duplicating the image in memory, let's do now the work line by line: memory friendly
