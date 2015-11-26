@@ -226,6 +226,8 @@ class rcmrdNatBreaks:
         # connect buttons
         self.dlg.buttonInFile.clicked.connect( self.doOpenFile )
         self.dlg.buttonOutFile.clicked.connect( self.doSaveFile )
+        # select input file tab
+        self.dlg.tabs.setCurrentWidget( self.dlg.tabFiles)
     # ____________
     def getSampling(self):
         sampling = 12
