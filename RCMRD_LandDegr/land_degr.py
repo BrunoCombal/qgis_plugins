@@ -317,7 +317,7 @@ class RCMRD_LandDegr:
         if self.clipLayer is not None:
             ext = self.clipLayer.extent()
             bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
-            extraParam = "-te {} {} {} {} -cutline {}".format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text() )
+            extraParam = '-dstnodata 0 -te {} {} {} {} -cutline "{}" -crop_to_cutline '.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text() )
         method = 0 # because we resample thematic layers
         # rtype 0: Byte, 1: int16, 2: uint16, 3:uint32, 4: int32, 5: Float32, 6: Float54
              
@@ -713,7 +713,7 @@ class RCMRD_LandDegr:
         # Run the dialog event loop, and exit only if all check are ok
         checkToGo = False
         result = False
-        while not result and checkToGo:
+        while not checkToGo:
             result = self.dlg.exec_()
             if result:
                 checkToGo = self.doCheckToGo()
@@ -723,6 +723,7 @@ class RCMRD_LandDegr:
         #self.iface.messageBar().pushMessage("Info","Running")
 
         # See if OK was pressed
+        self.logMsg("Result {} checktogo {}".format(result, checkToGo))
         if result:
             # then run processings
             self.doProcessing()
