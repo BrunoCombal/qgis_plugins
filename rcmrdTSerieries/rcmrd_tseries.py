@@ -36,6 +36,7 @@ import os, os.path
 import datetime
 import random
 import processing
+import subprocess
 
 class rcmrdTSerieries:
     """QGIS Plugin Implementation."""
@@ -302,7 +303,7 @@ class rcmrdTSerieries:
         self.dlg.editSuffix.clear()
         self.dlg.editSuffix.setText('_NDV.tif')
         
-        self.dlg.editOutAverage.clear()
+        #self.dlg.editOutAverage.clear()
         self.dlg.buttonOutAverage.clicked.connect((lambda: self.doSaveFname('average')))
         
         # signals for clipShp widgets
@@ -395,6 +396,47 @@ class rcmrdTSerieries:
     def doTmpName(self, fname):
         return '{}_{}.tif'.format(fname, random.randint(0,10000))
     # ___________________
+    def doClipShell(self):
+        inFiles = [ self.intermediateFiles['AVG'], self.intermediateFiles['MIN'], self.intermediateFiles['MAX'] ]
+        inCheck= [ self.dlg.checkAverage.isChecked(), self.dlg.checkMinimum.isChecked(), self.dlg.checkMaximum.isChecked() ]
+        outFiles= [ self.dlg.editOutAverage.text(), self.dlg.editOutMinimum.text(), self.dlg.editOutMaximum.text() ]
+        inFname= []
+        inCRS  = []
+        outFname=[]
+
+        # first create the list of files that need to be opened (depends on user choice)
+        for ii, cc, oo in zip(inFiles, inCheck, outFiles):
+            if cc == True: # skip filenames which are not set
+                thisFid = gdal.Open(ii, GA_ReadOnly)
+                if thisFid is None:
+                    self.logMsg("Could not open file {}".format(ii))
+                    return False
+                thisCRS = thisFid.GetProjection()
+                inFname.append(ii)
+                inCRS.append(thisCRS)
+                thisFid=None # close file, as we'll need to delete it later on
+                outFname.append(oo)
+    
+        procs=[]
+        for thisName, thisCRS, thisOutput in zip(inFname, inCRS, outFname):
+            ext = self.clipLayer.extent()
+            bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
+            extraParam = '-dstnodata 0 -te {} {} {} {} -cutline "{}" -crop_to_cutline '.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
+            self.logMsg("Clipping: extraParam {}".format(extraParam))
+            # note that before QGis 2.10, gdal_translate does not have cutline
+            command='gdalwarp -of GTiff -co "compress=lzw" -dstnodata 0 {} "{}" "{}"'.format(extraParam, thisName, thisOutput)
+            self.logMsg(command)
+            result = subprocess.Popen(command, sell=False)
+            result.wait()
+            procs.append(result) # allows further analysis, avoid overwriting object, just in case...
+            self.logMsg( 'Command return: {}'.format(result.poll()) )
+            thisStr='Subprocess command returned: {} {}'
+            for ii in result.communicate():
+                thisStr = '{} {}'.format(thisStr, ii)
+            self.logMsg(thisStr)
+        return True
+    # ___________________
+    # this version calls processing
     # clip (gdalwarp) the preceding result, then replace it
     # input: get doCompute's result: output file names are stored in self.intermediateFiles
     # output: read from the interface
@@ -419,10 +461,10 @@ class rcmrdTSerieries:
                 inCRS.append(thisCRS)
                 thisFid=None # close file, as we'll need to delete it later on
                 outFname.append(oo)
-    
+                
+        ext = self.clipLayer.extent()
+        bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]    
         for thisName, thisCRS, thisOutput in zip(inFname, inCRS, outFname):
-            ext = self.clipLayer.extent()
-            bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
             # processing.runalg("gdalogr:warpreproject")
             #ALGORITHM: Warp (reproject)
             #INPUT <ParameterRaster>
@@ -441,7 +483,7 @@ class rcmrdTSerieries:
             #TFW <ParameterBoolean>
             #EXTRA <ParameterString>
             #OUTPUT <OutputRaster>
-            extraParam = '-te {} {} {} {} -cutline {}'.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
+            extraParam = '-dstnodata 0 -te {} {} {} {} -cutline "{}" -crop_to_cutline '.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
             self.logMsg("Clipping: extraParam {}".format(extraParam))
             #METHOD(Resampling method):	0 - near, 1 - bilinear, 2 - cubic, 3 - cubicspline, 4 - lanczos
             #RTYPE(Output raster type): 0 - Byte, 1 - Int16, 2 - UInt16, 3 - UInt32, 4 - Int32, 5 - Float32, 6 - Float64

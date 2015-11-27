@@ -35,6 +35,7 @@ from osgeo.gdalconst import *
 from rcmrd_rfe_dialog import rcmrdRFEDialog
 import os.path
 import random
+import subprocess
 # for computing natural_breaks distribution
 #from pysal.esda.mapclassify import Natural_Breaks
 
@@ -412,6 +413,43 @@ class rcmrdRFE:
     def doTmpName(self, fname):
         return '{}_{}.tif'.format(fname, random.randint(0,10000))
     # ___________________
+    def doClipShell(self):
+        inFiles  = [ self.intermediateFiles['RFE'], self.intermediateFiles['RFD'], self.intermediateFiles['RFI'] ]
+        outFiles = [ self.dlg.editRFE.text(), self.dlg.editRFD.text(), self.dlg.editRFI.text() ]
+        inFname  = []
+        inCRS    = []
+        outFname = []
+
+        # first create the list of files that need to be opened (depends on user choice)
+        for ii, oo in zip(inFiles, outFiles):
+            thisFid = gdal.Open(ii, GA_ReadOnly)
+            if thisFid is None:
+                self.dlg.logMsg("Could not open file {}".format(ii))
+                return False
+            thisCRS = thisFid.GetProjection()
+            inFname.append(ii)
+            inCRS.append(thisCRS)
+            thisFid = None # close file, as we'll need to delete it later on
+            outFname.append(oo)
+    
+        ext = self.clipLayer.extent()
+        bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
+        extraParam = '-te {} {} {} {} -cutline "{}" -crop_to_cutline '.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
+    
+        command='gdalwarp -of GTiff -co "compress=lzw" -dstnodata 0 {} "{}" "test_{}"'.format(extraParam, inFname[0], outFname[0])
+    
+        result=[]
+        for thisName, thisCRS, thisOut in zip(inFname, inCRS, outFname):
+            command='gdalwarp -of GTiff -co "compress=lzw" -dstnodata 0 {} "{}" "{}"'.format(extraParam, thisName, thisOut)
+            self.logMsg(command)
+            self.logMsg("extraParam {}".format(extraParam))
+            thisProc = subprocess.Popen(command, shell=False)
+            thisProc.wait()
+            result.append(thisProc) # for furter analysis, if needed
+        return True
+        
+    # ___________________
+    # this version is for using plugin processing
     # input: self.intermediateFiles
     # output: filenames as defined in the interface
     def doClip(self):
@@ -433,10 +471,10 @@ class rcmrdRFE:
             thisFid = None # close file, as we'll need to delete it later on
             outFname.append(oo)
     
+        ext = self.clipLayer.extent()
+        bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
         for thisName, thisCRS, thisOut in zip(inFname, inCRS, outFname):
-            ext = self.clipLayer.extent()
-            bb  = [ ext.xMinimum(), ext.yMinimum(), ext.xMaximum(), ext.yMaximum() ]
-            extraParam = '-te {} {} {} {} -cutline {}'.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
+            extraParam = '-dstnodata 0 -te {} {} {} {} -cutline "{}" -crop_to_cutline '.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
             self.logMsg("extraParam {}".format(extraParam))
             testproc = processing.runalg('gdalogr:warpreproject',
                           thisName, # input
@@ -644,7 +682,7 @@ class rcmrdRFE:
                         return False
                 else: # rename files
                     inFiles  = [ self.intermediateFiles['RFE'], self.intermediateFiles['RFD'], self.intermediateFiles['RFI'] ]
-                    outFiles = [ self.dlg.editRFE.text(), self.dlg.editRFD.text(), self.dlg.editRFI.text() ]
+                    outFiles = [ unicode(self.dlg.editRFE.text()), unicode(self.dlg.editRFD.text()), unicode(self.dlg.editRFI.text()) ]
                     try:
                         for iiIn, iiOut in zip(inFiles, outFiles):
                             os.rename(iiIn, iiOut)
@@ -652,6 +690,6 @@ class rcmrdRFE:
                         self.logMsg("Error when tying to create final file {}. Please use intermediate file {} instead".format(iiOut, iiIn), QgsMessageLog.CRITICAL)
                         self.dlg.setCurrentWidget(self.dlg.tabMessages)
                 if computeOK:
-                    self.iface.addRasterLayer(self.dlg.editRFE.text(), 'Rainfall erosivity')
-                    self.iface.addRasterLayer(self.dlg.editRFI.text(), 'Rainfall intensity')
-                    self.iface.addRasterLayer(self.dlg.editRFD.text(), 'Rainfall depth')
+                    self.iface.addRasterLayer(unicode(self.dlg.editRFE.text()), 'Rainfall erosivity')
+                    self.iface.addRasterLayer(unicode(self.dlg.editRFI.text()), 'Rainfall intensity')
+                    self.iface.addRasterLayer(unicode(self.dlg.editRFD.text()), 'Rainfall depth')
