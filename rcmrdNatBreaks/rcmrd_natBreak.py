@@ -315,6 +315,7 @@ class rcmrdNatBreaks:
                     recoded[wtr]=icode
             outDs.GetRasterBand(1).WriteArray(recoded.reshape(1,ns), 0, il)
 
+        return True
     # ____________
     def run(self):
         
@@ -322,6 +323,7 @@ class rcmrdNatBreaks:
         self.dlg.show()
         # Run the dialog event loop
         jobDone = False
+        result = False
         while not jobDone:
             result = self.dlg.exec_()
             if result:
@@ -333,4 +335,4 @@ class rcmrdNatBreaks:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            pass
+            self.iface.addRasterLayer( self.dlg.editOutFile.text() , 'Result (Natural Breaks)')
