@@ -326,8 +326,8 @@ class rcmrdRFE:
         self.logMsg("--- Processing is starting ---")
         # build list of filenames
         intensityThreshold = self.dlg.intensityThreshold.value()
-        WRD = self.dlg.valueWRD.value()
-        WRI = self.dlg.valueWRI.value()
+        WRD = float(self.dlg.valueWRD.value())
+        WRI = float(self.dlg.valueWRI.value())
         
         list_files = self.doCreateFNameList()
         if not list_files:
@@ -483,7 +483,7 @@ class rcmrdRFE:
                           '0', # no data, <parameterString>
                           0, # target resolution: 0=unchanged
                           0, # method: 0, as we are only clipping
-                          0, # output raster type
+                          5, # output raster type
                           2, # compression
                           None, # jpeg compression
                           None, # zlevel
