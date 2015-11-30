@@ -26,7 +26,7 @@ from qgis.core import *
 # Initialize Qt resources from file resources.py
 import resources
 import string
-import numpy
+import numpy, numpy.ma
 # gdal
 from osgeo import gdal
 from osgeo.gdalconst import *
@@ -280,9 +280,9 @@ class rcmrdTSerieries:
         if saveFname:
             if selector=='average':
                 self.dlg.editOutAverage.setText(saveFname)
-            if selector=='minimum':
+            if selector=='min':
                 self.dlg.editOutMinimum.setText(saveFname)
-            if selector=='maximum':
+            if selector=='max':
                 self.dlg.editOutMaximum.setText(saveFname)
     # ___________________
     def doClipShpWidgetsUpdate(self):
@@ -507,6 +507,7 @@ class rcmrdTSerieries:
                 thisCRS = thisFid.GetProjection()
                 inFname.append(ii)
                 inCRS.append(thisCRS)
+                dataType = thisFid.GetRasterBand(1).DataType
                 thisFid=None # close file, as we'll need to delete it later on
                 outFname.append(oo)
                 
@@ -533,6 +534,8 @@ class rcmrdTSerieries:
             #OUTPUT <OutputRaster>
             extraParam = '-dstnodata 0 -te {} {} {} {} -cutline "{}" -crop_to_cutline '.format(bb[0], bb[1], bb[2], bb[3], self.dlg.editClipShp.text())
             self.logMsg("Clipping: extraParam {}".format(extraParam))
+            self.logMsg("Detected datatype: {}".format(dataType))
+            self.logMsg("Clipping {}, output {}".format(thisName, thisOutput))
             #METHOD(Resampling method):	0 - near, 1 - bilinear, 2 - cubic, 3 - cubicspline, 4 - lanczos
             #RTYPE(Output raster type): 0 - Byte, 1 - Int16, 2 - UInt16, 3 - UInt32, 4 - Int32, 5 - Float32, 6 - Float64
             #COMPRESS(GeoTIFF options. Compression type): 	0 - NONE, 1 - JPEG, 2 - LZW, 3 - PACKBITS, 4 - DEFLATE
@@ -544,7 +547,7 @@ class rcmrdTSerieries:
                           '0', # no data, <parameterString>
                           0, # target resolution: 0=unchanged
                           0, # method: 0, as we are only clipping
-                          0, # output raster type
+                          dataType, # output raster type, must be same as input
                           2, # compression
                           None, # jpeg compression
                           None, # zlevel
@@ -566,13 +569,17 @@ class rcmrdTSerieries:
 
         self.logMsg("--- Processing starting ---")
     
-        classes=[[0.68, 0.98],[0.50, 0.68],[0.30, 0.50],[0.15, 0.30],[-0.10, 0.15]]
+        noData = 1.e20
+        classes=[ [0.68, 0.98], [0.50, 0.68], [0.30, 0.50], [0.15, 0.30], [-0.10, 0.15] ]
         if self.dlg.checkValReal.isChecked():
             DN2F = [1.0, 0]
+            dataRange = [-0.1, 0.94]
         elif self.dlg.checkDNSPOT.isChecked():
             DN2F = [0.004, -0.1]
+            dataRange = [-0.1, 0.92]
         elif self.dlg.checkDNPROBA.isChecked():
             DN2F = [0.004, -0.08]
+            dataRange = [-0.1, 0.94]
         else:
             self.logMsg("Error: unknown input value conversion factor. Please revise code")
             return False
@@ -623,19 +630,19 @@ class rcmrdTSerieries:
             else:
                 outType=GDT_Float32
             outDrv = gdal.GetDriverByName(format)
-            minDS = outDrv.Create( outFileMin, ns, nl, 1, outType, options)
+            minDS = outDrv.Create( outFileMIN, ns, nl, 1, outType, options)
             minDS.SetProjection(thisProj)
             minDS.SetGeoTransform(thisTrans)
         
         if self.dlg.checkMaximum.checkState():
-            outFileMAX = self.dlg.editOutMaximum.text()
+            outFileMAX = self.doTmpName( self.dlg.editOutMaximum.text() )
             self.intermediateFiles['MAX'] = outFileMAX
             if self.dlg.checkClassifyMaximum.checkState():
                 outType=GDT_Byte
             else:
                 outType=GDT_Float32
             outDrv = gdal.GetDriverByName(format)
-            maxDS = outDrv.Create( outFileMax, ns, nl, 1, outType, options)
+            maxDS = outDrv.Create( outFileMAX, ns, nl, 1, outType, options)
             maxDS.SetProjection(thisProj)
             maxDS.SetGeoTransform(thisTrans)
 
@@ -655,12 +662,15 @@ class rcmrdTSerieries:
             # get the whole time series for this line
             for ifile in listFID:
                 thisDataset = numpy.ravel(ifile.GetRasterBand(1).ReadAsArray(0, il, ns, 1).astype(float))
+                wnodata = ( thisDataset < dataRange[0] ) * ( thisDataset > dataRange[1] )
+                if wnodata.any(): #recode no data
+                    thisDataset[wnodata] = noData
                 data.append(thisDataset*DN2F[0] + DN2F[1])
                 
             data = numpy.asarray(data)
             avg = data.sum(axis=0) / float(len(listFID))
-            mini = data.amin(axis=0)
-            maxi = data.amax(axis=0)
+            mini = data.min(axis=0)
+            maxi = data.max(axis=0)
         
             recoded = numpy.zeros(avg.shape)
             # Classify average?
@@ -746,17 +756,22 @@ class rcmrdTSerieries:
      
                     if self.dlg.checkMinimum.checkState():
                         try:
-                            os.rename(self.intermediateFiles['MIN'], self.dlg.editOutAverage.text())
+                            os.rename(self.intermediateFiles['MIN'], self.dlg.editOutMinimum.text())
                         except OSError:
                             self.logMsg("Could not rename the intermediate minimum. Please use file {}".format(self.intermediateFiles['MIN']) )
      
                     if self.dlg.checkMaximum.checkState():
                         try:
-                            os.rename(self.intermediateFiles['MAX'], self.dlg.editOutAverage.text())
+                            os.rename(self.intermediateFiles['MAX'], self.dlg.editOutMaximum.text())
                         except OSError:
-                            self.logMsg("Could not rename the intermediate minimum. Please use file {}".format(self.intermediateFiles['MAX']) )
+                            self.logMsg("Could not rename the intermediate maximum. Please use file {}".format(self.intermediateFiles['MAX']) )
      
             if computeOK:
-                self.iface.addRasterLayer(self.dlg.editOutAverage.text(), 'Average')
+                if self.dlg.checkAverage.checkState():
+                    self.iface.addRasterLayer(self.dlg.editOutAverage.text(), 'Time series average')
+                if self.dlg.checkMinimum.checkState():
+                    self.iface.addRasterLayer(self.dlg.editOutMinimum.text(), 'Time series minimum')
+                if self.dlg.checkMaximum.checkState():
+                    self.iface.addRasterLayer(self.dlg.editOutMaximum.text(), 'Time series maximum')
             else:
                 self.logMsg("Error in processing. Exit.")
