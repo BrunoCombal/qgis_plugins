@@ -63,7 +63,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="tabInfiles">
     <attribute name="title">
@@ -356,7 +356,7 @@
       <item row="6" column="0">
        <widget class="QCheckBox" name="checkMinimum">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="font">
          <font>
@@ -437,7 +437,7 @@
       <item row="11" column="0">
        <widget class="QCheckBox" name="checkMaximum">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="font">
          <font>
@@ -516,13 +516,19 @@
       </item>
       <item row="8" column="2">
        <widget class="QCheckBox" name="checkClassifyMinimum">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Classify result</string>
         </property>
        </widget>
       </item>
       <item row="13" column="2">
-       <widget class="QCheckBox" name="checkClassifyMaximum_2">
+       <widget class="QCheckBox" name="checkClassifyMaximum">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Classify result</string>
         </property>
@@ -598,7 +604,7 @@
   <tabstop>checkMaximum</tabstop>
   <tabstop>editOutMaximum</tabstop>
   <tabstop>buttonOutMaximum</tabstop>
-  <tabstop>checkClassifyMaximum_2</tabstop>
+  <tabstop>checkClassifyMaximum</tabstop>
   <tabstop>editClassifiedMax</tabstop>
   <tabstop>tabs</tabstop>
   <tabstop>logTextDump</tabstop>

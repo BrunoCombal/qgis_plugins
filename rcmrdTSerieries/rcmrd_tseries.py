@@ -293,6 +293,37 @@ class rcmrdTSerieries:
             self.dlg.editClipShp.setEnabled(False)
             self.dlg.buttonClipShp.setEnabled(False)
     # ___________________
+    def doOutWidgetsUpdate(self, selector):
+        if selector=='avg':
+            if self.dlg.checkAverage.isChecked():
+                self.dlg.editOutAverage.setEnabled(True)
+                self.dlg.buttonOutAverage.setEnabled(True)
+                self.dlg.checkClassifyAverage.setEnabled(True)
+            else:
+                self.dlg.editOutAverage.setEnabled(False)
+                self.dlg.buttonOutAverage.setEnabled(False)
+                self.dlg.checkClassifyAverage.setEnabled(False)
+                
+        if selector=='min':
+            if self.dlg.checkMinimum.isChecked():
+                self.dlg.editOutMinimum.setEnabled(True)
+                self.dlg.buttonOutMinimum.setEnabled(True)
+                self.dlg.checkClassifyMinimum.setEnabled(True)
+            else:
+                self.dlg.editOutMinimum.setEnabled(False)
+                self.dlg.buttonOutMinimum.setEnabled(False)
+                self.dlg.checkClassifyMinimum.setEnabled(False)
+                
+        if selector=='max':
+            if self.dlg.checkMaximum.isChecked():
+                self.dlg.editOutMaximum.setEnabled(True)
+                self.dlg.buttonOutMaximum.setEnabled(True)
+                self.dlg.checkClassifyMaximum.setEnabled(True)
+            else:
+                self.dlg.editOutMaximum.setEnabled(False)
+                self.dlg.buttonOutMaximum.setEnabled(False)
+                self.dlg.checkClassifyMaximum.setEnabled(False)
+    # ___________________
     def doInitGui(self):
         #self.dlg.editInDir.clear()
         self.dlg.buttonInDir.clicked.connect( (lambda: self.doOpenDir('inDir')) )
@@ -303,8 +334,25 @@ class rcmrdTSerieries:
         self.dlg.editSuffix.clear()
         self.dlg.editSuffix.setText('_NDV.tif')
         
+        # check on/off the outputs
+        self.dlg.checkAverage.stateChanged.connect( (lambda: self.doOutWidgetsUpdate('avg')) )
+        self.dlg.checkMinimum.stateChanged.connect( (lambda: self.doOutWidgetsUpdate('min')) )
+        self.dlg.checkMaximum.stateChanged.connect( (lambda: self.doOutWidgetsUpdate('max')) )
+        # init minimum's widgets status
+        self.dlg.checkMinimum.setCheckState(False)
+        self.dlg.editOutMinimum.setEnabled(False)
+        self.dlg.buttonOutMinimum.setEnabled(False)
+        self.dlg.checkClassifyMinimum.setEnabled(False)
+        # init maximum's widgets status
+        self.dlg.checkMaximum.setCheckState(False)
+        self.dlg.editOutMaximum.setEnabled(False)
+        self.dlg.buttonOutMaximum.setEnabled(False)
+        self.dlg.checkClassifyMaximum.setEnabled(False)
+        
         #self.dlg.editOutAverage.clear()
-        self.dlg.buttonOutAverage.clicked.connect((lambda: self.doSaveFname('average')))
+        self.dlg.buttonOutAverage.clicked.connect( (lambda: self.doSaveFname('average')) )
+        self.dlg.buttonOutMinimum.clicked.connect( (lambda: self.doSaveFname('min')) )
+        self.dlg.buttonOutMaximum.clicked.connect( (lambda: self.doSaveFname('max')) )
         
         # signals for clipShp widgets
         self.dlg.checkClipShp.stateChanged.connect( self.doClipShpWidgetsUpdate )
@@ -313,7 +361,7 @@ class rcmrdTSerieries:
     # return False if any test is not past
     def doCheckReady(self):
     
-        # do we have something to do?
+        # do we have anything to do?
         toDo=False
         if self.dlg.checkAverage.checkState():
             toDo=True
@@ -443,11 +491,11 @@ class rcmrdTSerieries:
     def doClip(self):
         
         inFiles = [ self.intermediateFiles['AVG'], self.intermediateFiles['MIN'], self.intermediateFiles['MAX'] ]
-        inCheck= [ self.dlg.checkAverage.isChecked(), self.dlg.checkMinimum.isChecked(), self.dlg.checkMaximum.isChecked() ]
+        inCheck = [ self.dlg.checkAverage.isChecked(), self.dlg.checkMinimum.isChecked(), self.dlg.checkMaximum.isChecked() ]
         outFiles= [ self.dlg.editOutAverage.text(), self.dlg.editOutMinimum.text(), self.dlg.editOutMaximum.text() ]
-        inFname= []
-        inCRS  = []
-        outFname=[]
+        inFname = []
+        inCRS   = []
+        outFname= []
 
         # first create the list of files that need to be opened (depends on user choice)
         for ii, cc, oo in zip(inFiles, inCheck, outFiles):
@@ -588,8 +636,8 @@ class rcmrdTSerieries:
                 outType=GDT_Float32
             outDrv = gdal.GetDriverByName(format)
             maxDS = outDrv.Create( outFileMax, ns, nl, 1, outType, options)
-            minDS.SetProjection(thisProj)
-            minDS.SetGeoTransform(thisTrans)
+            maxDS.SetProjection(thisProj)
+            maxDS.SetGeoTransform(thisTrans)
 
         self.logMsg("Processing with conversion factors: {} {}".format(DN2F[0], DN2F[1]))
         if self.dlg.checkAverage.checkState():
@@ -611,8 +659,11 @@ class rcmrdTSerieries:
                 
             data = numpy.asarray(data)
             avg = data.sum(axis=0) / float(len(listFID))
+            mini = data.amin(axis=0)
+            maxi = data.amax(axis=0)
         
             recoded = numpy.zeros(avg.shape)
+            # Classify average?
             if self.dlg.checkClassifyAverage.checkState():
                 # note: do not classify in place
                 iClassVal = 0
@@ -622,10 +673,36 @@ class rcmrdTSerieries:
                     if wrecode.any():
                         recoded[wrecode]= iClassVal
                 avg = recoded
-        
+
+            # Classify minimum?
+            recoded = numpy.zeros(mini.shape)
+            if self.dlg.checkClassifyMinimum.checkState():
+                iClassVal = 0
+                for iClasses in classes:
+                    iClassVal += 1
+                    wrecode = (mini >= iclasses[0]) * (mini < iclasses[1])
+                    if wrecode.any():
+                        recoded[wrecode]=iClassVal
+                mini = recoded
+
+            # Classify maximum?
+            recoded = numpy.zeros(maxi.shape)
+            if self.dlg.checkClassifyMaximum.checkState():
+                iClassVal = 0
+                for iClasses in classes:
+                    iClassVal += 1
+                    wrecode = (maxi >= iclasses[0]) * (maxi < iclasses[1])
+                    if wrecode.any():
+                        recoded[wrecode]=iClassVal
+                maxi = recoded
+                        
             # write outputs
             if self.dlg.checkAverage.checkState():
                 avgDS.GetRasterBand(1).WriteArray( avg.reshape(1,ns), 0, il )
+            if self.dlg.checkMinimum.checkState():
+                minDS.GetRasterBand(1).WriteArray( mini.reshape(1, ns), 0, il)
+            if self.dlg.checkMaximum.checkState():
+                maxDS.GetRasterBand(1).WriteArray( maxi.reshape(1, ns), 0, il )
 
         # close files
         for ii in listFID:
