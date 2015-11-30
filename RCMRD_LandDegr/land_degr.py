@@ -706,7 +706,6 @@ class RCMRD_LandDegr:
             self.dlg.comboSlopeLF.addItem(ii.name())
             self.dlg.comboSoilErodibility.addItem(ii.name())
 
-
         # show the dialog
         self.dlg.show()
         self.dlg.logTextDump.append("Waiting for settings")
