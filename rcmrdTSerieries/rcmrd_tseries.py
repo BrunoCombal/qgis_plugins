@@ -365,11 +365,14 @@ class rcmrdTSerieries:
         toDo=False
         if self.dlg.checkAverage.checkState():
             toDo=True
+            
         if self.dlg.checkMinimum.checkState():
             toDo=True
+            
         if self.dlg.checkMaximum.checkState():
             toDo=True
-        if toDo==False:
+            
+        if toDo == False:
             self.logMsg("Nothing to do! Please choose something to compute under tab 'Output file'")
             self.iface.messageBar().pushMessage("Info","Please choose a processing under tab 'Output file'", level=QgsMessageBar.WARNING)
             return False
@@ -403,7 +406,7 @@ class rcmrdTSerieries:
             if self.dlg.editOutMaximum.text() == '':
                 self.logMsg('Please define an output file name for Maximum, in "Output files" tab.', QgsMessageLog.CRITICAL)
                 self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
-                return False
+                return False      
             
         return True
     # ___________________
@@ -563,52 +566,59 @@ class rcmrdTSerieries:
      
         return True
     # ___________________
+    # compute time series average|minimum|maximum
     # input: list_files
     # output: self.TmpFiles[]
     def doCompute(self):
 
         self.logMsg("--- Processing starting ---")
     
-        noData = 1.e20
+        noData = 0
         classes=[ [0.68, 0.98], [0.50, 0.68], [0.30, 0.50], [0.15, 0.30], [-0.10, 0.15] ]
         if self.dlg.checkValReal.isChecked():
             DN2F = [1.0, 0]
-            dataRange = [-0.1, 0.94]
+            dataRange = [-0.076, 0.9]  # let's consider the common interval for Spot/VGT and Proba-V
         elif self.dlg.checkDNSPOT.isChecked():
             DN2F = [0.004, -0.1]
-            dataRange = [-0.1, 0.92]
+            dataRange = [-0.096, 0.9]  # valid values from 1 to 250
         elif self.dlg.checkDNPROBA.isChecked():
             DN2F = [0.004, -0.08]
-            dataRange = [-0.1, 0.94]
+            dataRange = [-0.076, 0.92] # valid values from 1 to 250
         else:
             self.logMsg("Error: unknown input value conversion factor. Please revise code")
             return False
-    
+
+        self.logMsg( "Conversion factors: {}*DN + {}".format(DN2F[0], DN2F[1]) )
+        self.logMsg( "Data range: [{} ; {}]".format(dataRange[0], dataRange[1]) )
+
         list_files = self.doCreateFNameList()
         if not list_files:
             self.logMsg("Could not find files matching input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
             self.iface.messageBar().pushMessage("CRITICAL", "Could not find files matching input criterias on tab 'Input files'. Please revise input directory, suffix, prefix and dates.")
             self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
             return False
-        if len(list_files)==0:
-            self.logMsg("no input file, please check inputs.")
+        if len(list_files) == 0:
+            self.logMsg("No input file, please check inputs.")
             return False
 
         # let's open all files
         listFID=[]
+        listNodata=[]
         for ii in list_files:
-            self.logMsg( 'Opening file {}'.format(ii) )
             thisFID = gdal.Open(ii, GA_ReadOnly)
-            listFID.append(thisFID)
-            
+            listFID.append( thisFID )
+            thisNodata = thisFID.GetRasterBand(1).GetNoDataValue()
+            listNodata.append(thisNodata)
+            self.logMsg( 'Opening file {}; no data set to: {}'.format(ii, thisNodata) )
+
         # get geospatial properties from the first input file
         thisProj = listFID[0].GetProjection()
         thisTrans = listFID[0].GetGeoTransform()
         ns = listFID[0].RasterXSize
         nl = listFID[0].RasterYSize
-        format='GTiff'
-        options=['compress=lzw']
-        
+        format  = 'GTiff'
+        options = ['compress=lzw']
+
         # let's instantiate the output(s)
         if self.dlg.checkAverage.checkState():
             outFileAVG = self.doTmpName( self.dlg.editOutAverage.text() )
@@ -621,7 +631,8 @@ class rcmrdTSerieries:
             avgDS = outDrv.Create( outFileAVG, ns, nl, 1, outType, options  )
             avgDS.SetProjection(thisProj)
             avgDS.SetGeoTransform(thisTrans)
-       
+            self.logMsg("Time series average will be computed.")
+
         if self.dlg.checkMinimum.checkState():
             outFileMIN = self.doTmpName( self.dlg.editOutMinimum.text() )
             self.intermediateFiles['MIN'] = outFileMIN
@@ -630,49 +641,57 @@ class rcmrdTSerieries:
             else:
                 outType=GDT_Float32
             outDrv = gdal.GetDriverByName(format)
-            minDS = outDrv.Create( outFileMIN, ns, nl, 1, outType, options)
-            minDS.SetProjection(thisProj)
-            minDS.SetGeoTransform(thisTrans)
-        
+            minDS = outDrv.Create( outFileMIN, ns, nl, 1, outType, options )
+            minDS.SetProjection( thisProj )
+            minDS.SetGeoTransform( thisTrans )
+            self.logMsg( "Time series minimum will be computed." )
+
         if self.dlg.checkMaximum.checkState():
             outFileMAX = self.doTmpName( self.dlg.editOutMaximum.text() )
             self.intermediateFiles['MAX'] = outFileMAX
             if self.dlg.checkClassifyMaximum.checkState():
-                outType=GDT_Byte
+                outType = GDT_Byte
             else:
-                outType=GDT_Float32
-            outDrv = gdal.GetDriverByName(format)
-            maxDS = outDrv.Create( outFileMAX, ns, nl, 1, outType, options)
-            maxDS.SetProjection(thisProj)
-            maxDS.SetGeoTransform(thisTrans)
+                outType = GDT_Float32
+            outDrv = gdal.GetDriverByName( format )
+            maxDS  = outDrv.Create( outFileMAX, ns, nl, 1, outType, options )
+            maxDS.SetProjection( thisProj )
+            maxDS.SetGeoTransform( thisTrans )
+            self.logMsg( "Time series maximum will be computed." )
 
-        self.logMsg("Processing with conversion factors: {} {}".format(DN2F[0], DN2F[1]))
+        self.logMsg( "Processing with conversion factors: {} {}".format(DN2F[0], DN2F[1]) )
         if self.dlg.checkAverage.checkState():
-            self.logMsg("Average is computed")
+            self.logMsg( "Average is computed" )
         if self.dlg.checkMinimum.checkState():
-            self.logMsg("Minimum is computed")
+            self.logMsg( "Minimum is computed" )
         if self.dlg.checkMaximum.checkState():
-            self.logMsg("Maximum is computed")
+            self.logMsg( "Maximum is computed" )
 
-        data=[]
-        
+        data=[] # to accumulate time series
         # parse by line
         for il in range(nl):
             data=[]
             # get the whole time series for this line
             for ifile in listFID:
                 thisDataset = numpy.ravel(ifile.GetRasterBand(1).ReadAsArray(0, il, ns, 1).astype(float))
+                # le's recode any data out of bound (rather than using nodata values)
                 wnodata = ( thisDataset < dataRange[0] ) * ( thisDataset > dataRange[1] )
-                if wnodata.any(): #recode no data
-                    thisDataset[wnodata] = noData
-                data.append(thisDataset*DN2F[0] + DN2F[1])
-                
-            data = numpy.asarray(data)
-            avg = data.sum(axis=0) / float(len(listFID))
-            mini = data.min(axis=0)
-            maxi = data.max(axis=0)
-        
-            recoded = numpy.zeros(avg.shape)
+                recodedDataset = thisDataset*DN2F[0] + DN2F[1]
+                if wnodata.any(): #recode no data afterwards to avoid changing their values with DN2F
+                    recodedDataset[ wnodata ] = noData
+                data.append(recodedDataset)
+
+            #data = numpy.asarray(data)
+            #avg  = data.sum(axis=0) / float(len(listFID))
+            #avg  = data.average( axis=0 )
+            #mini = data.min( axis=0 )
+            #maxi = data.max( axis=0 )
+            data = numpy.ma.masked_values( data, noData)
+            avg  = numpy.ma.average(data, axis=0)
+            mini = numpy.ma.min(data, axis=0)
+            maxi = numpy.ma.max(data, axis=0)
+            
+            recoded = numpy.zeros(avg.shape) # default class set to 0
             # Classify average?
             if self.dlg.checkClassifyAverage.checkState():
                 # note: do not classify in place
@@ -683,28 +702,34 @@ class rcmrdTSerieries:
                     if wrecode.any():
                         recoded[wrecode]= iClassVal
                 avg = recoded
+            else: # raw values are saved, ensure that NaN are coded with noData
+                avg = numpy.ma.fix_invalid(avg, fill_value = noData)
 
             # Classify minimum?
             recoded = numpy.zeros(mini.shape)
             if self.dlg.checkClassifyMinimum.checkState():
                 iClassVal = 0
-                for iClasses in classes:
+                for iclasses in classes:
                     iClassVal += 1
                     wrecode = (mini >= iclasses[0]) * (mini < iclasses[1])
                     if wrecode.any():
                         recoded[wrecode]=iClassVal
                 mini = recoded
+            else:
+                mini = numpy.ma.fix_invalid(mini, fill_value = noData)
 
             # Classify maximum?
             recoded = numpy.zeros(maxi.shape)
             if self.dlg.checkClassifyMaximum.checkState():
                 iClassVal = 0
-                for iClasses in classes:
+                for iclasses in classes:
                     iClassVal += 1
                     wrecode = (maxi >= iclasses[0]) * (maxi < iclasses[1])
                     if wrecode.any():
                         recoded[wrecode]=iClassVal
                 maxi = recoded
+            else:
+                maxi = numpy.ma.fix_invalid(maxi, fill_value=noData)
                         
             # write outputs
             if self.dlg.checkAverage.checkState():
@@ -768,10 +793,10 @@ class rcmrdTSerieries:
      
             if computeOK:
                 if self.dlg.checkAverage.checkState():
-                    self.iface.addRasterLayer(self.dlg.editOutAverage.text(), 'Time series average')
+                    self.iface.addRasterLayer(unicode(self.dlg.editOutAverage.text()), 'Time series average')
                 if self.dlg.checkMinimum.checkState():
-                    self.iface.addRasterLayer(self.dlg.editOutMinimum.text(), 'Time series minimum')
+                    self.iface.addRasterLayer(unicode(self.dlg.editOutMinimum.text()), 'Time series minimum')
                 if self.dlg.checkMaximum.checkState():
-                    self.iface.addRasterLayer(self.dlg.editOutMaximum.text(), 'Time series maximum')
+                    self.iface.addRasterLayer(unicode(self.dlg.editOutMaximum.text()), 'Time series maximum')
             else:
                 self.logMsg("Error in processing. Exit.")
