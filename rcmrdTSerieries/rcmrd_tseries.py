@@ -203,7 +203,6 @@ class rcmrdTSerieries:
             self.iface.messageBar().pushMessage("CRITICAL",msg)
             prepend="Critical error! "
         self.dlg.logTextDump.append(prepend + msg)
-        
     # ___________________
     def ParseType(self, type):
         if type == 'Byte':
@@ -278,6 +277,11 @@ class rcmrdTSerieries:
         dialog = QFileDialog()
         saveFname = dialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
         if saveFname:
+            # be sure to append '.tif'
+            pathname, extension = os.path.splitext(saveFname)
+            if extension!='.tif':
+                saveFname = pathname + '.tif'
+                
             if selector=='average':
                 self.dlg.editOutAverage.setText(saveFname)
             if selector=='min':
@@ -357,6 +361,9 @@ class rcmrdTSerieries:
         # signals for clipShp widgets
         self.dlg.checkClipShp.stateChanged.connect( self.doClipShpWidgetsUpdate )
         self.dlg.buttonClipShp.clicked.connect( (lambda: self.doOpenFile('clipShp') ) )
+        
+        # set view on the Help tab
+        self.dlg.tabs.setCurrentWidget(self.dlg.tabHelp)
     # ____________________
     # return False if any test is not past
     def doCheckReady(self):

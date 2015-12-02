@@ -586,6 +586,11 @@ class RCMRD_LandDegr:
         fname = dialog.getSaveFileName(self.dlg, self.tr("Define a file name to save {}".format(text[selector])), os.path.expanduser("~"))
     
         if fname:
+            # be sure to append '.tif'
+            pathname, extension = os.path.splitext(fname)
+            if extension!='.tif':
+                fname = pathname + '.tif'
+                
             if selector=='PotLDIM':
                 self.dlg.editOutPLDI.setText(fname)
             if selector=='ActLDIM':

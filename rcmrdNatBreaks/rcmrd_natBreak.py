@@ -209,6 +209,10 @@ class rcmrdNatBreaks:
         dialog = QFileDialog()
         saveFname = QFileDialog.getSaveFileName(self.dlg, self.tr("Define an output file name for classification"), os.path.expanduser("~"))
         if saveFname:
+            # be sure to append '.tif'
+            pathname, extension = os.path.splitext(saveFname)
+            if extension!='.tif':
+                saveFname = pathname + '.tif'
             self.dlg.editOutFile.setText(saveFname)
     # ____________
     def doCheckToGo(self):
@@ -228,6 +232,9 @@ class rcmrdNatBreaks:
         self.dlg.buttonOutFile.clicked.connect( self.doSaveFile )
         # select input file tab
         self.dlg.tabs.setCurrentWidget( self.dlg.tabFiles)
+        
+        # set view on the Help tab
+        self.dlg.tabs.setCurrentWidget(self.dlg.tabHelp)
     # ____________
     def getSampling(self):
         sampling = 12
