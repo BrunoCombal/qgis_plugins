@@ -223,6 +223,24 @@ class rcmrdCombine:
         return '{}_{}.tif'.format(fname, random.randint(0,10000))
     # ________________
     def doCheckReady(self):
+        # all files defined?
+        if self.dlg.editNdvi.text()=='':
+            self.logMsg("Please define an input NDVI file. Revise 'Inputs' tab.", QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if self.dlg.editLULC.text()=='':
+            self.logMsg("Please define an input LU/LC file. Revise 'Inputs' tab.", QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+        if self.dlg.editClipShp.text()=='':
+            self.logMsg("Please define an input clipping shapefile. Revise 'Inputs' tab.", QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
+            
+        if self.dlg.editOutFile.text()=='':
+            self.logMsg("Please define an output file. Revise 'Outputs' tab.", QgsMessageLog.CRITICAL)
+            self.dlg.tabs.setCurrentWidget(self.dlg.tabMessages)
+            return False
         return True
     # ___________________
     def doOpenFile(self, selector):
@@ -256,9 +274,16 @@ class rcmrdCombine:
                 
             if selector=='out':
                 self.dlg.editOutFile.setText(fname)
-
-    
+                
         return True
+    #____________________
+    def saveDir(self, selector):
+        text={'WrkDir':'intermediate processing'}
+        dialog = QFileDialog()
+        dname = dialog.getExistingDirectory(self.dlg, self.tr("Choose a directory to save {}".format(text[selector])), os.path.expanduser("~"))
+        if dname:
+            if selector=='WrkDir':
+                self.dlg.editWrkDir.setText(dname)
     # ________________
     def doGetClasses(self):
         classes = []
@@ -287,7 +312,7 @@ class rcmrdCombine:
         thisCRS, thisGT = self.getCRS(infile)
     
         self.logMsg('{}: projection is {}'.format(infile, thisCRS))
-    
+        self.logMsg('Projection file is {}'.format(outfile))
         testproc = processing.runalg('gdalogr:warpreproject',
             infile, # input
             thisCRS, # source ss
@@ -320,11 +345,11 @@ class rcmrdCombine:
         # reproject to LULC resolution
         proj, geoTrans = self.getCRS(lulcFile)
         
-        tmpdir=self.dlg.editWrkDir.text()
-        ndviFileReproj = os.path.join(tmpdir, self.doTmpName(ndviFile))
+        tmpdir = self.dlg.editWrkDir.text()
+        ndviFileReproj = os.path.join( tmpdir, self.doTmpName( os.path.basename(ndviFile)) )
         self.doReproj(ndviFile, ndviFileReproj, proj, geoTrans)
         
-        lulcFileReproj = os.path.join(tmpdir, self.doTmpName(lulcFile))
+        lulcFileReproj = os.path.join(tmpdir, self.doTmpName( os.path.basename(lulcFile)) )
         self.doReproj(lulcFile, lulcFileReproj , proj, geoTrans)
         
         outProj, outGeoTrans = self.getCRS(ndviFileReproj)
