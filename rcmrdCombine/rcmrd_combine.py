@@ -327,6 +327,8 @@ class rcmrdCombine:
         lulcFileReproj = os.path.join(tmpdir, self.doTmpName(lulcFile))
         self.doReproj(lulcFile, lulcFileReproj , proj, geoTrans)
         
+        outProj, outGeoTrans = self.getCRS(ndviFileReproj)
+        
         # math and classification in 1 go
         thisNDVI = gdal.Open(ndviFileReproj, GA_ReadOnly)
         thisLULC = gdal.Open(lulcFileReproj, GA_ReadOnly)
@@ -336,8 +338,8 @@ class rcmrdCombine:
         geotrans = thisLULC.GetGeoTransform()
         outDrv = gdal.GetDriverByName('GTiff')
         outFID = outDrv.Create( self.dlg.editOutFile.text(), ns, nl, 1, GDT_Byte )
-        outFID.SetProjection(proj)
-        outFID.SetGeoTransform(geoTrans)
+        outFID.SetProjection(outProj)
+        outFID.SetGeoTransform(outGeoTrans)
         
         for il in range(nl):
             dataNDVI = numpy.ravel( thisNDVI.GetRasterBand(1).ReadAsArray(0,il, ns, 1) )
