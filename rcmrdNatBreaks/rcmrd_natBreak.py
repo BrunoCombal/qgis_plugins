@@ -3,7 +3,7 @@
 /***************************************************************************
  rcmrdNatBreaks
                                  A QGIS plugin
- Classify a raser with Natural Breaks
+ Classify a raster with Natural Breaks
                               -------------------
         begin                : 2015-11-24
         git sha              : $Format:%H$

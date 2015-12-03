@@ -9,12 +9,12 @@
 [general]
 name=RCMRD Natural Breaks
 qgisMinimumVersion=2.0
-description=Classify a raser with Natural Breaks
-version=0.1
+description=Classify a raster with Natural Breaks
+version=1.0
 author=Bruno Combal, MESA
 email=bruno.combal@gmail.com
 
-about=Converts pixel values in a raster into classes, using the Natural Breaks Algorithm
+about=Converts pixel values in a raster into classes, using the Natural Breaks Algorithm. This plugin requires pysal library.
 
 tracker=https://github.com/BrunoCombal/qgis_plugins
 repository=https://github.com/BrunoCombal/qgis_plugins
@@ -23,7 +23,8 @@ repository=https://github.com/BrunoCombal/qgis_plugins
 # Recommended items:
 
 # Uncomment the following line and add your changelog:
-# changelog=
+changelog= 0.1 Development version.
+            1.0 First production version, December 2015.
 
 # Tags are comma separated with spaces allowed
 tags=

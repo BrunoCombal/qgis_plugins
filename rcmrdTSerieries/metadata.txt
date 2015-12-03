@@ -10,11 +10,11 @@
 name=RCMRD Time Series
 qgisMinimumVersion=2.0
 description=Process rasters time series
-version=0.1
+version=1.0
 author=Bruno Combal, MESA
 email=bruno.combal@gmail.com
 
-about=Process rasters time series. For now, compute the seasonal average
+about=Process NDVI rasters time series, by computing the average, minimum and maximum of the time series.
 
 tracker=https://github.com/BrunoCombal
 repository=https://github.com/BrunoCombal/qgis_plugins
@@ -23,7 +23,8 @@ repository=https://github.com/BrunoCombal/qgis_plugins
 # Recommended items:
 
 # Uncomment the following line and add your changelog:
-# changelog=
+changelog= 0.1 Development version.
+            1.0 First production version, December 2015.
 
 # Tags are comma separated with spaces allowed
 tags=
@@ -31,6 +32,7 @@ tags=
 homepage=
 category=Raster
 icon=icon.png
+
 # experimental flag
 experimental=True
 

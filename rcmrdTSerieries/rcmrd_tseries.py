@@ -568,7 +568,7 @@ class rcmrdTSerieries:
                           extraParam, # extra 
                           thisOutput)
             if not testproc:
-                self.logMsg("Reprojection failed for file {inFileName}")
+                self.logMsg("Reprojection failed for file {}".format(thisName))
                 return False
      
         return True

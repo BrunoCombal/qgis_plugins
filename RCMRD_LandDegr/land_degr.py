@@ -362,7 +362,7 @@ class RCMRD_LandDegr:
                           extraParam, # extra 
                           output)
         if not testproc:
-            self.logMsg("Reprojection failed for file {inFileName}")
+            self.logMsg("Reprojection failed for file {}".format(inFileName))
             return False
                        
         return True
