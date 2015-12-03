@@ -213,6 +213,10 @@ class rcmrdCombine:
         # connect button for saving
         self.dlg.buttonOut.clicked.connect( (lambda:self.saveFile('out')) )
         
+        # open on help tab
+        self.dlg.tabs.setCurrentWidget(self.dlg.tabHelp)
+
+        
         return True
     # ___________________
     def doTmpName(self, fname):
@@ -282,6 +286,8 @@ class rcmrdCombine:
     
         thisCRS, thisGT = self.getCRS(infile)
     
+        self.logMsg('{}: projection is {}'.format(infile, thisCRS))
+    
         testproc = processing.runalg('gdalogr:warpreproject',
             infile, # input
             thisCRS, # source ss
@@ -330,6 +336,8 @@ class rcmrdCombine:
         geotrans = thisLULC.GetGeoTransform()
         outDrv = gdal.GetDriverByName('GTiff')
         outFID = outDrv.Create( self.dlg.editOutFile.text(), ns, nl, 1, GDT_Byte )
+        outFID.SetProjection(proj)
+        outFID.SetGeoTransform(geoTrans)
         
         for il in range(nl):
             dataNDVI = numpy.ravel( thisNDVI.GetRasterBand(1).ReadAsArray(0,il, ns, 1) )
@@ -347,6 +355,7 @@ class rcmrdCombine:
                 
             outFID.GetRasterBand(1).WriteArray( data.reshape(1,ns), 0, il)
 
+        return True
     # ________________
     def run(self):
         """Run method that performs all the real work"""
@@ -365,4 +374,6 @@ class rcmrdCombine:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            self.doProcessing()
+            jobOK = self.doProcessing()
+            if jobOK:
+                self.iface.addRasterLayer(unicode(self.dlg.editOutFile.text()), 'NDVI + LULC')
