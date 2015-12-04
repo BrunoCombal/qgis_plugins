@@ -216,6 +216,8 @@ class rcmrdCombine:
         # open on help tab
         self.dlg.tabs.setCurrentWidget(self.dlg.tabHelp)
 
+        # reset button
+        self.dlg.buttonResetClasses.clicked.connect( self.doSetClassesDefault )
         
         return True
     # ___________________
@@ -294,6 +296,19 @@ class rcmrdCombine:
         classes.append([self.dlg.spinMin5.value(), self.dlg.spinMax5.value()])
         
         return classes
+    # ________________
+    def doSetClassesDefault(self):
+        self.dlg.spinMin1.setValue(0)
+        self.dlg.spinMax1.setValue(2)
+        self.dlg.spinMin2.setValue(2)
+        self.dlg.spinMax2.setValue(4)
+        self.dlg.spinMin3.setValue(4)
+        self.dlg.spinMax3.setValue(6)
+        self.dlg.spinMin4.setValue(6)
+        self.dlg.spinMax4.setValue(8)
+        self.dlg.spinMin5.setValue(8)
+        self.dlg.spinMax5.setValue(10)
+        return True
     # ________________
     def getCRS(self, file):
         thisFid = gdal.Open(file, GA_ReadOnly)
