@@ -456,7 +456,7 @@ class RCMRD_LandDegr:
             output = self.doTempFile('reproject', '.tif', self.dlg.editWrkDir.text() )
             self.dictReproj[ thisFName ] = output
             if self.doResample(thisFName, output) == False:
-                self.logMsg("Reprojection failure for {}".format(thisFName))
+                self.logMsg("Reprojection failed for {}".format(thisFName))
                 return False
 
         # now compute indices
@@ -730,6 +730,8 @@ class RCMRD_LandDegr:
         self.logMsg("Result {} checktogo {}".format(result, checkToGo))
         if result:
             # then run processings
-            self.doProcessing()
-            self.iface.messageBar().pushMessage("Info","result is true")
+            if self.doProcessing():
+                self.iface.addRasterLayer(unicode(self.dlg.editOutPLDI.text()), 'Potential LDIM')
+                self.iface.addRasterLayer(unicode(self.dlg.editOutALDI.text()), 'Actual LDIM')
+            #self.iface.messageBar().pushMessage("Info","result is true")
             #QgsMessageLog.logMessage("Value is " + str(self.dlg.data1.value()))
