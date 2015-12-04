@@ -443,6 +443,31 @@ p, li { white-space: pre-wrap; }
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>tabs</tabstop>
+  <tabstop>editNdvi</tabstop>
+  <tabstop>buttonNDVI</tabstop>
+  <tabstop>editLULC</tabstop>
+  <tabstop>buttonLULC</tabstop>
+  <tabstop>editClipShp</tabstop>
+  <tabstop>buttonclipShp</tabstop>
+  <tabstop>editOutFile</tabstop>
+  <tabstop>buttonOut</tabstop>
+  <tabstop>editWrkDir</tabstop>
+  <tabstop>buttonWrkDir</tabstop>
+  <tabstop>spinMin1</tabstop>
+  <tabstop>spinMax1</tabstop>
+  <tabstop>spinMin2</tabstop>
+  <tabstop>spinMax2</tabstop>
+  <tabstop>spinMin3</tabstop>
+  <tabstop>spinMax3</tabstop>
+  <tabstop>spinMin4</tabstop>
+  <tabstop>spinMax4</tabstop>
+  <tabstop>spinMin5</tabstop>
+  <tabstop>spinMax5</tabstop>
+  <tabstop>logTextDump</tabstop>
+  <tabstop>textEdit</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
