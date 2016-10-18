@@ -21,11 +21,13 @@
  ***************************************************************************/
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtGui import QAction, QIcon, QFileDialog, QLabel, QPixmap
+from qgis.core import *
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
 from fire_stats_dialog import FireStatsDialog
+import fireStatsTools
 import os.path
 
 
@@ -158,6 +160,7 @@ class FireStats:
 
         return action
 
+    # __________
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
@@ -168,7 +171,19 @@ class FireStats:
             callback=self.run,
             parent=self.iface.mainWindow())
 
+    # __________
+    def doInitGui(self):
+        # define icon
+        pic = QLabel(self.dlg)
+        pic.setGeometry(5, 5, 24, 24)
+        #use full ABSOLUTE path to the image, not relative
+        pic.setPixmap(QPixmap(self.plugin_dir + "/icon.png"))
 
+        # run update of bulletins lists
+        fireStatsTools.updateBulletinList(self.dlg.bulletinsList)
+        self.dlg.openSelectedBulletinButton.clicked.connect( lambda: self.openSelectedBulletin('inDir') )
+
+    # __________
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -179,9 +194,18 @@ class FireStats:
         # remove the toolbar
         del self.toolbar
 
+    # __________
+    def openSelectedBulletin(self, dirSelector):
+        dialog = QFileDialog()
+        dirName = dialog.getExistingDirectory(self.dlg, self.tr('Choose directory'), os.path.expanduser("~") )
+        if dirName:
+            if dirSelector=='inDir':
+                self.editInDir.setText(dirName)
 
+    # __________
     def run(self):
         """Run method that performs all the real work"""
+        self.doInitGui()
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop

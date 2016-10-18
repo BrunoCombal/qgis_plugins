@@ -29,7 +29,7 @@
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QTabWidget" name="tabsWidget">
+  <widget class="QTabWidget" name="bulletinTabs">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -39,7 +39,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="procTab">
     <property name="locale">
@@ -207,9 +207,16 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_4">
         <item>
-         <widget class="QPushButton" name="pushButton_4">
+         <widget class="QPushButton" name="createBulletin">
           <property name="text">
            <string>Générer</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="openBulletin">
+          <property name="text">
+           <string>Ouvrir</string>
           </property>
          </widget>
         </item>
@@ -230,8 +237,59 @@
       </item>
      </layout>
     </widget>
-    <zorder>verticalLayoutWidget</zorder>
-    <zorder>label_2</zorder>
+   </widget>
+   <widget class="QWidget" name="bulletinsTab">
+    <property name="locale">
+     <locale language="French" country="France"/>
+    </property>
+    <attribute name="title">
+     <string>Bulletins</string>
+    </attribute>
+    <widget class="QWidget" name="verticalLayoutWidget_2">
+     <property name="geometry">
+      <rect>
+       <x>520</x>
+       <y>0</y>
+       <width>131</width>
+       <height>81</height>
+      </rect>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QPushButton" name="openSelectedBulletinButton">
+        <property name="text">
+         <string>Ouvrir</string>
+        </property>
+        <property name="autoDefault">
+         <bool>true</bool>
+        </property>
+        <property name="default">
+         <bool>true</bool>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="deleteSelectedBulletin">
+        <property name="text">
+         <string>Effacer</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QListWidget" name="bulletinsList">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>10</y>
+       <width>501</width>
+       <height>391</height>
+      </rect>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="configTab">
     <property name="locale">
