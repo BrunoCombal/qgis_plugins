@@ -28,7 +28,7 @@ repository=ttps://github.com/BrunoCombal/fire_stats
 # Tags are comma separated with spaces allowed
 tags=QGis, plugin, fire, statistics
 
-homepage=ttps://github.com/BrunoCombal/fire_stats
+homepage=https://github.com/BrunoCombal/fire_stats
 category=Plugins
 icon=icon.png
 # experimental flag
