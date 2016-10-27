@@ -20,7 +20,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFile, QFileInfo
 from PyQt4.QtGui import QAction, QIcon, QFileDialog, QLabel, QPixmap
 from qgis.core import *
 # Initialize Qt resources from file resources.py
@@ -28,6 +28,8 @@ import resources
 # Import the code for the dialog
 from fire_stats_dialog import FireStatsDialog
 import fireStatsTools
+import ConfigParser
+import ast
 import os.path
 
 
@@ -67,6 +69,9 @@ class FireStats:
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'FireStats')
         self.toolbar.setObjectName(u'FireStats')
+
+        self.configuration = ConfigParser.ConfigParser()
+        self.thisConf = {}
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -159,6 +164,18 @@ class FireStats:
         self.actions.append(action)
 
         return action
+    # ___________________
+    def logMsg(self, msg, errorLvl=QgsMessageLog.INFO):
+        QgsMessageLog.logMessage(msg, tag='Fire stats',level=errorLvl)
+            
+        prepend=''
+        if errorLvl==QgsMessageLog.WARNING:
+            self.iface.messageBar().pushMessage("WARNING", msg)
+            prepend="Warning! "
+        if errorLvl==QgsMessageLog.CRITICAL:
+            self.iface.messageBar().pushMessage("CRITICAL",msg)
+            prepend="Critical error! "
+        #self.dlg.logTextDump.append(prepend + msg)
 
     # __________
     def initGui(self):
@@ -183,6 +200,15 @@ class FireStats:
         fireStatsTools.updateBulletinList(self.dlg.bulletinsList)
         self.dlg.openSelectedBulletinButton.clicked.connect( lambda: self.openSelectedBulletin('inDir') )
 
+        # read config file if it exists, else set defaults
+        self.logMsg( os.path.join(os.getcwd(), 'default.cfg') )
+        self.configuration.read( [ os.path.join(self.plugin_dir, 'user_config.cfg') , os.path.join(self.plugin_dir, 'default.cfg') ] )
+        # ast.literal_eval(self.configuration.items('fire stats')[1][1])
+        for ii in self.configuration.items('fire stats'):
+            if ii[0]=='fire_derived':
+                self.thisConf[ ii[0] ] = ast.literal_eval( ii[1] )
+            else:
+                self.thisConf[ ii[0] ] = ii[1]
     # __________
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
