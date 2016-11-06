@@ -115,6 +115,13 @@ def doCountPerPolygonId(refRaster, detectionRaster):
 				countPerId[ refLine[ii] ] = countPerId[ refLine[ii] ] + 1
 			else: # else create it
 				countPerId[ refLine[ii] ] = 1
-				
+
 	return countPerId
 
+# __________
+# compute a climatology from the first date to a stop year (to allow computing ancient data)
+# lastYear: last year to take into account
+def doClimatology(self.conf, lastYear):
+	print lastYear
+	# get list of dates, up to the last year
+	# if missing dates during the season: stop

@@ -27,7 +27,7 @@ from qgis.core import *
 import resources
 # Import the code for the dialog
 from fire_stats_dialog import FireStatsDialog
-import fireStatsTools
+import fireStatsTools, fireStatsGUITools
 import ConfigParser
 import ast
 import os.path
@@ -212,8 +212,13 @@ class FireStats:
         for ii in self.configuration.items('fire stats'):
             if ii[0]=='fire_derived':
                 self.thisConf[ ii[0] ] = ast.literal_eval( ii[1] )
+            elif ii[0]=='season':
+                self.thisConf[ ii[0] ] = ast.literal_eval( ii[1] )
             else:
                 self.thisConf[ ii[0] ] = ii[1]
+
+        # update tab "Configuration"
+        fireStatsGUITools.updateConfTab(self.dlg, self.thisConf)
     # __________
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
