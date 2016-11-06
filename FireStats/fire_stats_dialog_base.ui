@@ -29,17 +29,17 @@
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QTabWidget" name="bulletinTabs">
+  <widget class="QTabWidget" name="allTabs">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>10</y>
-     <width>661</width>
-     <height>431</height>
+     <x>0</x>
+     <y>0</y>
+     <width>681</width>
+     <height>441</height>
     </rect>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>2</number>
    </property>
    <widget class="QWidget" name="procTab">
     <property name="locale">
@@ -285,6 +285,152 @@
     <attribute name="title">
      <string>Configuration</string>
     </attribute>
+    <widget class="QLabel" name="label_5">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>10</y>
+       <width>101</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Saison des feux</string>
+     </property>
+    </widget>
+    <widget class="QSplitter" name="splitter">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>30</y>
+       <width>681</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QCheckBox" name="checkJanuary">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Jan</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkFebruary">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Fév</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkMarch">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Mars</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkApril">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Avr</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkMay">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Mai</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkJune">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Juin</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkJuly">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Jui</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkAugust">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Août</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkSeptember">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Sep</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkOctober">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Oct</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkNovember">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Nov</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkDecember">
+      <property name="whatsThis">
+       <string>Janvier</string>
+      </property>
+      <property name="text">
+       <string>Déc</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </widget>
    </widget>
    <widget class="QWidget" name="helpTab">
     <property name="locale">
