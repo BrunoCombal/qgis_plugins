@@ -197,7 +197,7 @@ class FireStats:
         pic.setPixmap(QPixmap(self.plugin_dir + "/icon.png"))
 
         # update database
-        #self.dlg.updateDBButton.clicked.connect( lambda: self.doDBProc('update') )
+        self.dlg.updateDBButton.clicked.connect( lambda: self.doDBProc('update') )
         # regenerate database
         self.dlg.regenerateDBButton.clicked.connect( lambda: self.doDBProc('regenerate') )
 
@@ -228,15 +228,25 @@ class FireStats:
     # __________
     def doDBProc(self, selector):
 
+        refRaster = r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
+        refIdRaster = r'/data/tmp/test_rasterID.tif'
+
         print 'Entering procedure'
         if selector=='update':
             print 'doing update'
+            detectionRaster = r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
+            countResult = fireStatsTools.doCountPerPolygonId(refIdRaster, detectionRaster)            
+            print countResult
+
         if selector=='regenerate':
             print 'doing regenerate'
             shpFile=r'/data/g2015_2012_0/g2015_2012_0_subsetAfrica_simplified.shp'
-            refRaster=r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
             outRaster=r'/data/tmp/test_rasterID.tif'
             fireStatsTools.doBurnShpToRaster(shpFile, 'ADM0_CODE', refRaster, outRaster)
+
+            detectionRaster = r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
+            countResult = fireStatsTools.doCountPerPolygonId(outRaster, detectionRaster)
+
         print '--- end ---'
         print
 

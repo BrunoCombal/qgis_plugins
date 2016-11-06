@@ -101,15 +101,20 @@ def doCountPerPolygonId(refRaster, detectionRaster):
 	thisFID = gdal.Open(detectionRaster, GA_ReadOnly)
 	ns = thisFID.RasterXSize
 	nl = thisFID.RasterYSize
+	countPerId = {}
 
 	for il in range(nl):
-		refLine = numpy.ravel( refFID.GetRasterBand(1).ReadAsArray(0,il,ns,1).astype(Int32) )
-		dataLine = numpy.ravl( thisFID.GetRasterBand(1).ReadAsArray(0, il, ns, 1).astype(int) )
-		indexToSum = numpy.nonzero( dataLine > 0 ) #Returns the indices of the elements that are non-zero.
+		refLine    = numpy.ravel( refFID.GetRasterBand(1).ReadAsArray(0, il, ns, 1).astype(int) )
+		dataLine   = numpy.ravel( thisFID.GetRasterBand(1).ReadAsArray(0, il, ns, 1).astype(int) )
+		indexToSum = numpy.ravel( numpy.nonzero( dataLine > 0 ) ) #Returns the indices of the elements that are non-zero.
+
 		for ii in indexToSum:
-			if refLine[ii] in countPerId: # does the key already exist in countPerId?
+			#print 'size=', refLine.shape, dataLine.shape, indexToSum.shape
+			if refLine[ii] in countPerId.keys(): # does the key already exist in countPerId?
+				#print ii, len(indexToSum), refLine[ii], refLine.min(), refLine.max()
 				countPerId[ refLine[ii] ] = countPerId[ refLine[ii] ] + 1
 			else: # else create it
 				countPerId[ refLine[ii] ] = 1
-
+				
 	return countPerId
+
