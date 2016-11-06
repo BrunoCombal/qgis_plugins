@@ -196,6 +196,11 @@ class FireStats:
         #use full ABSOLUTE path to the image, not relative
         pic.setPixmap(QPixmap(self.plugin_dir + "/icon.png"))
 
+        # update database
+        #self.dlg.updateDBButton.clicked.connect( lambda: self.doDBProc('update') )
+        # regenerate database
+        self.dlg.regenerateDBButton.clicked.connect( lambda: self.doDBProc('regenerate') )
+
         # run update of bulletins lists
         fireStatsTools.updateBulletinList(self.dlg.bulletinsList)
         self.dlg.openSelectedBulletinButton.clicked.connect( lambda: self.openSelectedBulletin('inDir') )
@@ -219,6 +224,21 @@ class FireStats:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
+
+    # __________
+    def doDBProc(self, selector):
+
+        print 'Entering procedure'
+        if selector=='update':
+            print 'doing update'
+        if selector=='regenerate':
+            print 'doing regenerate'
+            shpFile=r'/data/g2015_2012_0/g2015_2012_0_subsetAfrica_simplified.shp'
+            refRaster=r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
+            outRaster=r'/data/tmp/test_rasterID.tif'
+            fireStatsTools.doBurnShpToRaster(shpFile, 'ADM0_CODE', refRaster, outRaster)
+        print '--- end ---'
+        print
 
     # __________
     def openSelectedBulletin(self, dirSelector):
