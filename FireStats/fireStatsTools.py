@@ -6,6 +6,7 @@ import numpy
 from osgeo import gdal, ogr
 from osgeo.gdalconst import *
 import os, os.path, errno
+import itertools
 
 # __________
 # ref.: http://pythoncentral.io/pyside-pyqt-tutorial-the-qlistwidget/
@@ -39,7 +40,7 @@ def ParseType(self, type):
 	else:
 		return GDT_Float32
 # __________
-def silentRemove(filename):
+def silentRemove( filename ):
 # see http://stackoverflow.com/questions/10840533/most-pythonic-way-to-delete-a-file-which-may-not-exist
 	try:
 		os.remove(filename)
@@ -47,10 +48,67 @@ def silentRemove(filename):
 		if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
 			raise # re-raise exception if a different error occured
 # __________
-def createTmpDir(conf):
+def createTmpDir( conf ):
 	if not os.path.exists(conf["tmp_dir"]):
 		os.makedirs(conf["tmp_dir"])
 
+# ___________________
+# convert date YYYYMMDD into a count of dekad since 1900
+def YYYYMMDD_to_Num(yyyymmdd):
+	# base set to 1900
+	Yyymmddstr = str(yyyymmdd)
+	thisYear=int(yyyymmdd[0:4])
+	thisMonth=int(yyyymmdd[4:6])
+	thisDay=int(yyyymmdd[6:8])
+
+	return (thisYear-1900)*36 + (thisMonth-1)*3 + (thisDay)/10 
+# ___________________
+# convert count of dekad since 1900 into a date formatted YYYYMMDD
+def Num_to_YYYYMMDD(count):
+	# base set to 1900
+	thisYear = count/36
+	thisMonth = (count - (36 * thisYear))/3
+	thisDay = (count - (36 * thisYear) - (3 * thisMonth))*10 + 1
+	thisMonth += 1
+	thisYear += 1900
+
+	return '{}{:02}{:02}'.format(thisYear, thisMonth, thisDay)
+# __________
+# returns information about the file database
+def scanDatabase( conf ):
+
+	# from the input directory, get list of files
+	inDir = os.path.join(thisConf["data_dir"], 'tif')
+	# get the regex expression for the input file, or set it to '.*'
+	thisREGEX = '.*'
+	if not thisConf["fireFileREGEX"]:
+		thisREGEX = thisConf["fireFileREGEX"]
+
+	# !! dates not sorted
+	# list only files ending with 'tif', files have full path
+	lstFiles = [ f for f in os.listdir(inDir) if (
+		os.path.isfile(os.path.join(inDir, f)
+		) and f.split('.')[-1]=='.tif' and re.search(thisREGEX, f)) ]
+
+	# !! dates not sorted
+	# get list of dates, up to the last year
+	lstDates = [ f[0:8] for f in lstFiles ]
+
+	datesFiles = { k, v for k, v in zip(lstDates, lstFiles) }
+
+	# !! dates sorted
+	# check list of dates
+	lstDates.sort()
+	continuity = [ True ]
+	for ii in range(1, len(lstDates)-1):
+		continuity.append(
+			(YYYYMMDD_to_Num(lstDates[ii]) - YYYYMMDD_to_Num(lstDates[ii-1])) == 1 )
+
+	# date sorted: detect number of dates per year
+	lstYears = [ int(yyyymmdd[0:4]) for yyyymmdd in lstDates ]
+	yearLength = [len(list(g)) for k, g in itertools.groupby(lstYears)]
+
+	return datesFiles, continuity, lstYears, yearLength
 # __________
 # Input: a shapefile, with polygon; each polygon as an id
 # Input: a reference raster, will be copied to blank for burning the shapefile
@@ -117,11 +175,25 @@ def doCountPerPolygonId(refRaster, detectionRaster):
 				countPerId[ refLine[ii] ] = 1
 
 	return countPerId
+# __________
+# compute a climatology from the first date to stopYear included (to allow computing ancient data)
+# results are stored in a map-array{"yyyymmdd":{id:value, id:value}, yyyymmdd:{id:value, id:value}}
+def doClimatology(thisConf, stopYear, refIdRaster, datesFiles, continuity):
+	print stopYear
+
+	# accumulate information	
+	climatology = {}
+	for date, file in datesFiles.iteritems():
+		climatology[date] = doCountPerPolygonId( refIdRaster, file )
+
+	# let's compute the stats
+	allID = climatology[stopYear].keys()
+
+	statistics = {}
+	for id in allID:
+		# min, max, avg
+		valuesAllDates = [ value for idate in climatology.keys() for value in climatology[idate][id] ]
+		statistics[id] = { "min":min(valuesAllDates), "max":max(valuesAllDates), "avg":sum(valuesAllDates)/len(valuesAllDates) }
+	
 
 # __________
-# compute a climatology from the first date to a stop year (to allow computing ancient data)
-# lastYear: last year to take into account
-def doClimatology(self.conf, lastYear):
-	print lastYear
-	# get list of dates, up to the last year
-	# if missing dates during the season: stop

@@ -73,6 +73,8 @@ class FireStats:
         self.configuration = ConfigParser.ConfigParser()
         self.thisConf = {}
 
+        self.ErrorCode={'missing date':1}
+
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -235,25 +237,51 @@ class FireStats:
 
         refRaster = r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
         refIdRaster = r'/data/tmp/test_rasterID.tif'
+        shpFileID = r'/data/g2015_2012_0/g2015_2012_0_subsetAfrica_simplified.shp'
+        IdField = 'ADM0_CODE'
 
         print 'Entering procedure'
-        if selector=='update':
+        if selector == 'update':
             print 'doing update'
             detectionRaster = r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
+            
+            # if missing, recreate refIdRaster
+            if not os.path.exists(refIdRasterRaster):
+                fireStatsTools.doBurnShpToRaster(shpFileID, IdField, refRaster, refIdRaster)
+
             countResult = fireStatsTools.doCountPerPolygonId(refIdRaster, detectionRaster)            
             print countResult
+            # do stat for the missing dates
+            # if needed update the climatology
 
-        if selector=='regenerate':
-            print 'doing regenerate'
-            shpFile=r'/data/g2015_2012_0/g2015_2012_0_subsetAfrica_simplified.shp'
-            outRaster=r'/data/tmp/test_rasterID.tif'
-            fireStatsTools.doBurnShpToRaster(shpFile, 'ADM0_CODE', refRaster, outRaster)
+        if selector ==' regenerate':
+            print 'Regenating the database'
 
-            detectionRaster = r'/data/modis-firms/1day/MESA_JRC_modis-firms_1day_20150101_SPOTV-Africa-1km_v5.0.tif'
-            countResult = fireStatsTools.doCountPerPolygonId(outRaster, detectionRaster)
+            datesFiles, continuity, lstYears, yearLength = fireStatsTools.scanDatabase( self.thisConf )
+            # can we do the processing?
+            entireYears = [ ii for ii in yearLength if ii==36 ]
+            if len(entireYears) < self.thisConf["minNYearsClimatology"]:
+                print "Not enough entire years for the processing"
+                print "Please add more data"
+                return "missing date"
 
-        print '--- end ---'
-        print
+            if not all(continuity):
+                print 'Missing dates: '
+                missingDates = datesFiles.keys().sort()[continuity==False]
+                print ", ".join( [str(ii) for ii in missingDates] )
+                print 'Please update the input data with missing dates'
+                return self.ErrorCode["missing date"]
+
+            # create a fresh ID raster
+            fireStatsTools.doBurnShpToRaster(shpFileID, IdField, refRaster, refIdRaster)
+
+            # first ENTIRE year in the series of input
+            lstYears[yearLength == 36]
+
+
+            # climatology ends to the last year lastYear, currentYear - 1 should be greater than first year
+            lastYear=self.dlg.dateEdit.date.year - 1
+            fireStatsTools.doClimatology( self.thisConf, lastYear, refIdRaster, datesFiles, continuity )
 
     # __________
     def openSelectedBulletin(self, dirSelector):
