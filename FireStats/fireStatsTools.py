@@ -176,6 +176,29 @@ def doCountPerPolygonId(refRaster, detectionRaster):
 
 	return countPerId
 # __________
+def doSaveToShp(valuesByID, refField, refShp, outShp):
+
+	inShp  = ogr.Open(refShp)
+	inLYR  = inShp.GetLayer()
+	drv    = ogr.GetDriverByName( 'ESRI Shapefile' )
+	outDS  = drv.CreateDataSource( outShp )
+	outLYR = outDS.CopyLayer( inLYR, outShp )
+
+	minField = ogr.FieldDefn( "min", ogr.OFTReal )
+	maxField = ogr.FieldDefn( "max", ogr.OFTReal )
+	avgField = ogr.FieldDefn( "avg", ogr.OFTReal )
+	outLYR.CreateField( minField )
+	outLYR.CreateField( maxField )
+
+	for iPoly in outLYR:
+		thisID = iPoly.GetField(refField)
+		for iStat in ["min", "max", "avg"]:
+			iPoly.SetField( iStat, valuesByID[thisID][iStat] )
+
+	inShp.Destroy()
+	outDS.Destroy()
+	del inLYR, outLYR
+# __________
 # compute a climatology from the first date to stopYear included (to allow computing ancient data)
 # results are stored in a map-array{"yyyymmdd":{id:value, id:value}, yyyymmdd:{id:value, id:value}}
 def doClimatology(thisConf, stopYear, refIdRaster, datesFiles, continuity):
@@ -195,5 +218,6 @@ def doClimatology(thisConf, stopYear, refIdRaster, datesFiles, continuity):
 		valuesAllDates = [ value for idate in climatology.keys() for value in climatology[idate][id] ]
 		statistics[id] = { "min":min(valuesAllDates), "max":max(valuesAllDates), "avg":sum(valuesAllDates)/len(valuesAllDates) }
 	
+	return statistics
 
 # __________

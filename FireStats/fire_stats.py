@@ -276,7 +276,7 @@ class FireStats:
             fireStatsTools.doBurnShpToRaster(shpFileID, IdField, refRaster, refIdRaster)
 
             # first ENTIRE year in the series of input
-            lstYears[yearLength == 36]
+            lstYears[ yearLength == 36 ]
 
 
             # climatology ends to the last year lastYear, currentYear - 1 should be greater than first year
